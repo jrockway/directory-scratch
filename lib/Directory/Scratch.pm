@@ -50,7 +50,7 @@ sub touch {
     my $self = shift;
     my $path = shift;
     my $base = $self->base;
-    my @lines;
+    my @lines= @_;
 
     $path = File::Spec->catdir($base, $path);
 

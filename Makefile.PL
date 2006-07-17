@@ -9,9 +9,11 @@ WriteMakefile(
     ABSTRACT_FROM       => 'lib/Directory/Scratch.pm',
     PL_FILES            => {},
     PREREQ_PM => {
-		  'Test::More' => 0,
-		  'File::Spec' => 0,
-		  'File::Temp' => 0,
+		  'Test::More'  => 0,
+		  'File::Spec'  => 0,
+		  'File::Temp'  => 0,
+		  # only needed for testing 
+		  'File::Slurp' => 0,
 		 },
     dist                => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
     clean               => { FILES => 'Directory-Scratch-*' },

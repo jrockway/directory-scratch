@@ -2,8 +2,8 @@
 Changes
 lib/Directory/Scratch.pm
 Makefile.PL
-MANIFEST
-META.yml			# Will be created by "make dist"
+MANIFEST			This list of files
+META.yml
 README
 t/00-load.t
 t/01-parents_too.t
@@ -13,6 +13,8 @@ t/03-list.t
 t/04-links.t
 t/05-readwrite.t
 t/06-append-prepend.t
+t/07-delete.t
+t/08-exists.t
 t/boilerplate.t
 t/pod-coverage.t
 t/pod.t

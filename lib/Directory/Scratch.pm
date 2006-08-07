@@ -152,7 +152,7 @@ sub ls {
     
     # shoudln't be using this with files; but allow anyway
 
-    if(!-d $base && $self->exists($dir)){
+    if(!-d $self->exists($dir)){
 	return ($dir);
     }
     

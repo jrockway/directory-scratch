@@ -62,7 +62,8 @@ sub link {
     $from = File::Spec->catfile($base, $from);
     $to   = File::Spec->catfile($base, $to);
 
-    return symlink($from, $to) || croak "Couldn't link $from to $to: $!";
+    symlink($from, $to) || croak "Couldn't link $from to $to: $!";
+    return $to;
 }
 
 

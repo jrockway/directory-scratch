@@ -13,13 +13,12 @@ use Smart::Comments;
 our $VERSION = '0.04';
 
 sub new {
-   my $class = shift;
+    my $class = shift;
     my $self  = {};
     
     my $dir = File::Temp::tempdir( CLEANUP => 1 );
-
-    croak "Couldn't create a tempdir: $!"
-      if !-e $dir || !-d _;
+    
+    croak "Couldn't create a tempdir: $!" if !-d $dir;
     $self->{base} = $dir;
 
     bless $self, $class;    
@@ -49,9 +48,7 @@ sub mkdir {
     foreach my $directory (@directories){
 	$base = File::Spec->catdir($base, $directory);
 	mkdir $base;
-	
-	die "Failed to create $base: $!"
-	  if !-d $base;
+	die "Failed to create $base: $!" if !-d $base;
     }
     
     return $base;
@@ -66,7 +63,7 @@ sub link {
     $from = File::Spec->catfile($base, $from);
     $to   = File::Spec->catfile($base, $to);
 
-    return symlink $from, $to or die "Couldn't link $from to $to: $!";
+    return symlink($from, $to) || die "Couldn't link $from to $to: $!";
 }
 
 
@@ -114,10 +111,6 @@ sub write {
     @lines = map { "$_\n" } @lines;
     write_file($file, $args, @lines) or die "Error writing file: $!";
 }
-      
-sub prepend { 
-    die "Not yet implemented."; 
-}
 
 sub append {
     return &write(@_); # magic!
@@ -150,7 +143,19 @@ sub ls {
     my $dir = shift;
     my $base = $self->base;
     my @result;
+
+    if(!$self->exists($dir)){
+	return (undef); # doesn't exist, return the empty list
+    }
+    
     $base = File::Spec->catdir($base, $dir);
+    
+    # shoudln't be using this with files; but allow anyway
+
+    if(!-d $base && $self->exists($dir)){
+	return ($dir);
+    }
+    
     opendir my $dh, $base or die "Failed to open directory $base: $!";
     while(my $file = readdir $dh){
 	next if $file eq '.';
@@ -182,14 +187,14 @@ sub delete {
     $path = File::Spec->catdir($base, $path);
     
     die "No such file or directory $path" if(!-e $path);
+    
     if(-d _){
-	rmdir $path or die "Couldn't remove directory $path: $!";
+	return (rmdir $path or die "Couldn't remove directory $path: $!");
     }
     else {
-	unlink $path or die "Couldn't unlink $path: $!";
+	return (unlink $path or die "Couldn't unlink $path: $!");
     }
     
-    return;
 }
 
 1;
@@ -308,8 +313,8 @@ If C<$path> is omitted, the root is assumed.
 
 Deletes the named file or directory.
 
-If the path is removed successfully, the method returns.  Otherwise,
-an exception is thrown.
+If the path is removed successfully, the method returns true.
+Otherwise, an exception is thrown.
 
 (Note: delete means C<unlink> for a file and C<rmdir> for a directory.
 C<delete>-ing an unempty directory is an error.)

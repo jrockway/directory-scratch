@@ -4,7 +4,7 @@
 
 use strict;
 use warnings;
-use Test::More tests=>14;
+use Test::More tests=>17;
 use Directory::Scratch;
 use File::Spec;
 
@@ -34,9 +34,16 @@ my @result = $t->ls;
 
 is_deeply(\@result, \@list, "listed everything");
 
+@result = $t->ls('/');
+@result = sort @result;
+is_deeply(\@result, \@list, "listed everything (with /)");
+
 @result = sort $t->ls('1');
 
 my @possible = map {File::Spec->catfile("1", $_)} qw(bar baz foo);
 
 is_deeply(\@result, \@possible, 'listed 1');
-    
+
+$t->touch('fooo');
+is_deeply([$t->ls('fooo')], ['fooo'], "listing a single file is OK");
+is_deeply([$t->ls('made_up_not_here')], [undef], "listing nothing is OK");

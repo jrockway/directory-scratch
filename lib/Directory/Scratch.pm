@@ -8,9 +8,8 @@ use File::Temp;
 use File::Spec;
 use File::Slurp qw(read_file write_file);
 use Carp;
-use Smart::Comments;
 
-our $VERSION = '0.04';
+our $VERSION = '0.05';
 
 sub new {
     my $class = shift;
@@ -48,7 +47,7 @@ sub mkdir {
     foreach my $directory (@directories){
 	$base = File::Spec->catdir($base, $directory);
 	mkdir $base;
-	die "Failed to create $base: $!" if !-d $base;
+	croak "Failed to create $base: $!" if !-d $base;
     }
     
     return $base;
@@ -63,7 +62,7 @@ sub link {
     $from = File::Spec->catfile($base, $from);
     $to   = File::Spec->catfile($base, $to);
 
-    return symlink($from, $to) || die "Couldn't link $from to $to: $!";
+    return symlink($from, $to) || croak "Couldn't link $from to $to: $!";
 }
 
 
@@ -109,7 +108,7 @@ sub write {
     }
     
     @lines = map { "$_\n" } @lines;
-    write_file($file, $args, @lines) or die "Error writing file: $!";
+    write_file($file, $args, @lines) or croak "Error writing file: $!";
 }
 
 sub append {
@@ -131,9 +130,9 @@ sub touch {
     
     my $path = File::Spec->catfile($base, $file);
 
-    open(my $fh, '>', $path) or die "Failed to open $path: $!";
-    map {print {$fh} "$_\n"  or die "Write error: $!"} @lines if @lines;
-    close($fh)               or die "Failed to close $path: $!";
+    open(my $fh, '>', $path) or croak "Failed to open $path: $!";
+    map {print {$fh} "$_\n"  or croak "Write error: $!"} @lines if @lines;
+    close($fh)               or croak "Failed to close $path: $!";
     
     return $path;
 }
@@ -156,7 +155,7 @@ sub ls {
 	return ($dir);
     }
     
-    opendir my $dh, $base or die "Failed to open directory $base: $!";
+    opendir my $dh, $base or croak "Failed to open directory $base: $!";
     while(my $file = readdir $dh){
 	next if $file eq '.';
 	next if $file eq '..';
@@ -186,13 +185,13 @@ sub delete {
 
     $path = File::Spec->catdir($base, $path);
     
-    die "No such file or directory $path" if(!-e $path);
+    croak "No such file or directory $path" if(!-e $path);
     
     if(-d _){
-	return (rmdir $path or die "Couldn't remove directory $path: $!");
+	return (rmdir $path or croak "Couldn't remove directory $path: $!");
     }
     else {
-	return (unlink $path or die "Couldn't unlink $path: $!");
+	return (unlink $path or croak "Couldn't unlink $path: $!");
     }
     
 }

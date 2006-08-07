@@ -61,6 +61,34 @@ sub touch {
     return $path;
 }
 
+sub ls {
+    my $self = shift;
+    my $dir = shift;
+    my $base = $self->base;
+    my @result;
+    $base = File::Spec->catdir($base, $dir);
+    opendir my $dh, $base or die "Failed to open directory $base: $!";
+    while(my $file = readdir $dh){
+	next if $file eq '.';
+	next if $file eq '..';
+	
+	my $full  = File::Spec->catfile($base, $file);
+	my $short;
+	if(!$dir || $dir eq '/'){
+	    $short = $file;
+	}
+	else {
+	    $short = File::Spec->catfile($dir, $file);
+	}
+	if(-d $full){
+	    push @result, $self->ls($short);
+	}
+	push @result, $short;
+    }
+    
+    return @result;
+}
+
 sub delete {
     my $self = shift;
     my $path = shift;
@@ -155,6 +183,16 @@ of C<@lines> separated by C<\n> characters.
 
 The full path of the new file is returned if the operation is
 successful, an exception is thrown otherwise.
+
+=head2 symlink($from, $to)
+
+Symlinks a file in the temporary directory to another file in the
+temporary directory.
+
+=head2 ls([$path])
+
+Returns a list (in no particular order) of all files below C<$path>.
+If C<$path> is omitted, the root is assumed.
 
 =head2 delete
 

@@ -1,4 +1,14 @@
 Revision history for Directory-Scratch
+
+0.04	7 August 2006
+	Added list, exists, read, write, append, and link; and lots
+	more tests.
+
+0.03    17 July 2006
+	Fixed an even sillier bug: touch(@lines) didn't work because
+	the touch looked like my @lines, not my @lines = @_; !!!
+	Added a test for this
+
 0.02    3 July 2006
 	Fixed a silly bug: mkdir('a'); mkdir('a/b'); would fail because
 	      	      	   a already existed.

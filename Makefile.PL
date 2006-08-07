@@ -12,7 +12,6 @@ WriteMakefile(
 		  'Test::More'  => 0,
 		  'File::Spec'  => 0,
 		  'File::Temp'  => 0,
-		  # only needed for testing 
 		  'File::Slurp' => 0,
 		 },
     dist                => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },

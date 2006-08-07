@@ -6,8 +6,13 @@ MANIFEST
 META.yml			# Will be created by "make dist"
 README
 t/00-load.t
+t/01-parents_too.t
 t/01-scratch.t
 t/02-nesting.t
+t/03-list.t
+t/04-links.t
+t/05-readwrite.t
+t/06-append-prepend.t
 t/boilerplate.t
 t/pod-coverage.t
 t/pod.t

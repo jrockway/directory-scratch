@@ -2,9 +2,8 @@
 # 01-scratch.t 
 # Copyright (c) 2006 Jonathan Rockway <jrockway@cpan.org>
 
-use Test::More tests => 14;
+use Test::More tests => 16;
 use Directory::Scratch;
-use File::Slurp qw(read_file);
 
 my $temp = Directory::Scratch->new;
 my $base = $temp->base;
@@ -28,14 +27,17 @@ ok(-r $file, 'file readable');
 
 # touch with lines (2)
 my $lfile = $temp->touch('baa', "This is a single line");
-my @lines = read_file($lfile);
+my @lines = Directory::Scratch::read_file($lfile);
 is($lines[0], "This is a single line\n");
 is($lines[1], undef);
 
 $lfile = $temp->touch('baaa', qw{There is more than one line});
-@lines = read_file($lfile);
+@lines = Directory::Scratch::read_file($lfile);
 chomp @lines;
 is_deeply(\@lines, [qw{There is more than one line}]);
+
+ok( my $fh = $temp->openfile( 'baaa' ), "openfile()" );
+ok( fileno($fh), "openfile() returned a filehandle" );
 
 # delete (2)
 $temp->delete('foo/bar/baz/bat');

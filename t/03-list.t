@@ -46,4 +46,4 @@ is_deeply(\@result, \@possible, 'listed 1');
 
 $t->touch('fooo');
 is_deeply([$t->ls('fooo')], ['fooo'], "listing a single file is OK");
-is_deeply([$t->ls('made_up_not_here')], [undef], "listing nothing is OK");
+is_deeply([$t->ls('made_up_not_here')], [], "listing nothing is OK");

@@ -1,17 +1,19 @@
 #!/usr/bin/perl
-# 09-new_on_object.t 
-# Copyright (c) 2006 Al Tobey <tobeya@cpan.org>
+# 09-clone_object.t 
+# Copyright (c) 2006 Al Tobey           <tobeya@cpan.org>
+#                and Jonathan Rockway <jrockway@cpan.org>
+
 use Directory::Scratch;
-use Test::More tests=>11;
+use Test::More tests=>12;
 use File::Spec;
 use strict;
 use warnings;
 
 my $t = Directory::Scratch->new;
+isa_ok($t, 'Directory::Scratch'); 
+can_ok( $t, 'clone' );
 
-can_ok( $t, 'new' );
-
-ok( my $sub_t = $t->new, "Call new on a parent Directory::Scratch object." );
+ok( my $sub_t = $t->clone, "Call clone on a parent Directory::Scratch object." );
 
 my @parent = File::Spec->splitdir( $t->base );
 my @child  = File::Spec->splitdir( $sub_t->base );
@@ -19,14 +21,14 @@ my @child  = File::Spec->splitdir( $sub_t->base );
 ok( @child > @parent, "Child should have more nodes than the parent." );
 my $subdir = pop @child;
 
-ok( @child == @parent, "Child with last element popped should == parent." );
+is_deeply( \@child, \@parent, "Child with last element popped should == parent." );
 
 #diag( "chdir into the parent directory" );
 chdir($t->base);
 
 ok( -d $subdir, "child subdirectory basename exists under parent" );
 
-ok( my $sub_sub_t = $sub_t->new, "create a grandchild" );
+ok( my $sub_sub_t = $sub_t->clone, "create a grandchild" );
 
 my $subsub_dir = $sub_sub_t->base;
 ok( -d $subsub_dir, "grandchild directory exists" );

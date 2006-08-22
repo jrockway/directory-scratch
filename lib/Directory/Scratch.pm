@@ -4,44 +4,37 @@ package Directory::Scratch;
 
 use warnings;
 use strict;
+
+use Carp;
 use File::Temp;
 use File::Spec;
 use File::Copy ();
 use File::Path ();
+use Scalar::Util qw(blessed);
 use Symbol ();
-use Carp;
 
-our $VERSION = '0.06';
+use overload '"' => \&base,
+  fallback => "yes, fallback";
+
+our $VERSION = '0.07_01';
 
 sub new {
-    my $this = shift;
-    my $class = ref($this) || $this;
-    my $self  = {};
+    my $class = shift;
+    my $self  ={};
     my %args;
-
-    if ( ref($this) && $this->isa( __PACKAGE__ ) ) {
-        # copy args from parent object
-        if ( exists $this->{parent_args} && ref $this->{parent_args} eq 'HASH' ) {
-            %args = %{ $this->{parent_args} };
-        }
-        # force the directory end up as a child of the parent, though
-        $args{DIR} = $this->base;
-    }
-    # this gets skipped if new() is called on an existing object
-    elsif ( @_ % 2 == 0 ) {
+    
+    if ( @_ % 2 == 0 ) {
         %args = @_;
     }
-    
     else {
         croak "Invalid number of arguments to Directory::Scratch->new().";
     }
 
-    # default CLEANUP to 1
+    # explicitly default CLEANUP to 1
     if(!exists $args{CLEANUP}){
 	$args{CLEANUP} = 1;
     }
     
-
     # args to new() are passed on to File::Temp::tempdir
     # TEMPLATE is a special case, since it's positional in File::Temp
     my @file_temp_args;
@@ -70,6 +63,29 @@ sub new {
     $self->{base} = $base;
 
     return bless $self, $class;    
+}
+
+sub clone {
+    my $this = shift;
+    my $self;
+    my %args;
+
+    if ( blessed $this && $this->isa( __PACKAGE__ ) ) {
+        # copy args from parent object
+        if ( exists $this->{parent_args} && ref $this->{parent_args} eq 'HASH' ) {
+            %args = %{ $this->{parent_args} };
+        }
+
+        # force the directory end up as a child of the parent, though
+        $args{DIR} = $this->base;
+	
+	$self = Directory::Scratch->new(%args);
+    }
+    else {
+	croak "Invalid reference passed to Directory::Scratch->clone";
+    }
+    
+    return $self;
 }
 
 sub base {
@@ -427,7 +443,7 @@ Directory::Scratch - Easy-to-use self-cleaning scratch space.
 
 =head1 VERSION
 
-Version 0.06
+Version 0.07_01
 
 =cut
 
@@ -451,13 +467,17 @@ Example:
     my @lines= qw(This is a file with lots of lines);
     my $file = $temp->touch('foo/bar/baz', @lines);
 
-    open(my $fh, '<', $file);
+    my $fh = openfile($file);
     print {$fh} "Here is another line.\n";
     close $fh;
 
     $temp->delete('foo/bar/baz');
 
     undef $temp; # everything else is removed
+
+    # Directory::Scratch objects stringify to base
+    $temp->touch('foo');
+    ok(-e "$temp/foo");  # /tmp/xYz837/foo should exist 
 
 =head1 METHODS
 
@@ -474,21 +494,24 @@ Creates a new temporary directory (via File::Temp and its defaults).
 When the object returned by this method goes out of scope, the
 directory and its contents are removed.
 
-new() may also be called on an existing object to create another scratch
-handle as a child.
-
     my $temp = Directory::Scratch->new;
     my $another = $temp->new(); # will be under $temp
 
     # some File::Temp arguments get passed through (may be less portable)
     my $temp = Directory::Scratch->new(
-        DIR => '/var/tmp', # be specific about where your files go
-        CLEANUP => 0,      # turn off automatic cleanup
-        TEMPLATE => 'ScratchDirXXXX' # specify a template for the dirname
+        DIR      => '/var/tmp',       # be specific about where your files go
+        CLEANUP  => 0,                # turn off automatic cleanup
+        TEMPLATE => 'ScratchDirXXXX', # specify a template for the dirname
     );
 
 If C<DIR>, C<CLEANUP>, or C<TEMPLATE> are omitted, reasonable defaults
 are selected.  C<CLEANUP> is on by default, and C<DIR> is set to C<File::Spec->tmpdir>;
+
+=head2 clone
+
+Creates a new C<Directory::Scratch> directory inside the current
+C<base>, copying TEMPLATE and CLEANUP options from the current
+instance.  Returns a C<Directory::Scratch> object.
 
 =head2 base
 

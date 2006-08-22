@@ -31,11 +31,16 @@ sub new {
     elsif ( @_ % 2 == 0 ) {
         %args = @_;
     }
-    # remove this else block if people complain - should be ok
-    # (arguments would have been ignored in <=0.05)
+    
     else {
         croak "Invalid number of arguments to Directory::Scratch->new().";
     }
+
+    # default CLEANUP to 1
+    if(!exists $args{CLEANUP}){
+	$args{CLEANUP} = 1;
+    }
+    
 
     # args to new() are passed on to File::Temp::tempdir
     # TEMPLATE is a special case, since it's positional in File::Temp
@@ -50,6 +55,11 @@ sub new {
         else {
             croak "Invalid argument \"$arg\" to new(): only CLEANUP, DIR, and TEMPLATE are allowed."
         }
+    }
+
+    # fix TEMPLATE to DWIM
+    if(exists $args{TEMPLATE} && !exists $args{DIR}){
+	push @file_temp_args, (TMPDIR => 1);
     }
 
     $self->{parent_args} = \%args;
@@ -403,6 +413,8 @@ sub DESTROY {
         carp "Not cleaning up files in $self->{base}."
             unless ( $self->{args}{CLEANUP} || $self->{called_cleanup} );
     }
+    
+    unlink $self->base;
 }
 
 1;
@@ -424,9 +436,10 @@ Version 0.06
 When writing test suites for modules that operate on files, it's often
 inconvenient to correctly create a platform-independent temporary
 storage space, manipulate files inside it, then clean it up when the
-test exits.
+test exits.  The inconvenience usually results in tests that don't work
+everwhere, or worse, no tests at all.
 
-This module aims to eliminate the problem by making it easy to do
+This module aims to eliminate that problem by making it easy to do
 things right.
 
 Example:
@@ -464,15 +477,18 @@ directory and its contents are removed.
 new() may also be called on an existing object to create another scratch
 handle as a child.
 
- my $temp = Directory::Scratch->new;
- my $another = $temp->new(); # will be under $temp
+    my $temp = Directory::Scratch->new;
+    my $another = $temp->new(); # will be under $temp
 
- # some File::Temp arguments get passed through (may be less portable)
- my $temp = Directory::Scratch->new(
-    DIR => '/var/tmp', # be specific about where your files go
-    CLEANUP => 0,      # turn off automatic cleanup
-    TEMPLATE => 'ScratchDirXXX' # specify a template for the dirname
- );
+    # some File::Temp arguments get passed through (may be less portable)
+    my $temp = Directory::Scratch->new(
+        DIR => '/var/tmp', # be specific about where your files go
+        CLEANUP => 0,      # turn off automatic cleanup
+        TEMPLATE => 'ScratchDirXXXX' # specify a template for the dirname
+    );
+
+If C<DIR>, C<CLEANUP>, or C<TEMPLATE> are omitted, reasonable defaults
+are selected.  C<CLEANUP> is on by default, and C<DIR> is set to C<File::Spec->tmpdir>;
 
 =head2 base
 
@@ -599,15 +615,12 @@ Portable.  Readable.  Clean.
 
 Ahh, much better.
 
-=head1 TODO
-
-Methods like C<cat> and C<ls> might make sense.  If you need them,
-I'll add them for you.  Just send me an e-mail or open a problem
-ticket on CPAN's RT.  (Link below.)
-
 =head1 PATCHES
 
-Commentary, patches, etc. are of course welcome, as well.
+Commentary, patches, etc. are of course welcome, as well.  If you send a patch,
+try patching the subversion version available from:
+
+L<https://svn.jrock.us/cpan_modules/Directory-Scratch>
 
 =head1 SEE ALSO
 
@@ -647,6 +660,10 @@ L<http://rt.cpan.org/NoAuth/Bugs.html?Dist=Directory-Scratch>
 L<http://search.cpan.org/dist/Directory-Scratch>
 
 =back
+
+=head1 ACKNOWLEDGEMENTS
+
+Thanks to Al Tobey (TOBEYA) for some excellent patches.
 
 =head1 COPYRIGHT & LICENSE
 

@@ -1,5 +1,13 @@
 Revision history for Directory-Scratch
 
+0.06    22 August 2006
+        Applied a patch (#21120) from TOBEYA.  API has changed a bit,
+        but it's for the better.
+
+0.05    7 August 2006
+        Removed some debugging code that shouldn't have been pushed to
+        CPAN :)
+
 0.04	7 August 2006
 	Added list, exists, read, write, append, and link; and lots
 	more tests.

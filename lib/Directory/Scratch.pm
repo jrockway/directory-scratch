@@ -13,7 +13,7 @@ use File::Path ();
 use Scalar::Util qw(blessed);
 use Symbol ();
 
-use overload '"' => \&base,
+use overload '""' => \&base,
   fallback => "yes, fallback";
 
 our $VERSION = '0.07_01';

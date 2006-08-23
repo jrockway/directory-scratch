@@ -16,20 +16,20 @@ use Symbol ();
 use overload '""' => \&base,
   fallback => "yes, fallback";
 
-our $VERSION = '0.07_01';
+our $VERSION = '0.07_02';
 
 sub new {
     my $class = shift;
     my $self  ={};
     my %args;
-    
-    if ( @_ % 2 == 0 ) {
-        %args = @_;
-    }
-    else {
+
+    eval {
+	%args = @_;
+    };
+    if($@){
         croak "Invalid number of arguments to Directory::Scratch->new().";
     }
-
+    
     # explicitly default CLEANUP to 1
     if(!exists $args{CLEANUP}){
 	$args{CLEANUP} = 1;
@@ -40,13 +40,14 @@ sub new {
     my @file_temp_args;
     foreach my $arg ( keys %args ) {
         if ( $arg eq 'TEMPLATE' ) {
-            unshift @file_temp_args, $args{$arg};
+            unshift @file_temp_args, $args{TEMPLATE};
         }
         elsif ( $arg eq 'CLEANUP' || $arg eq 'DIR' ) {
             push @file_temp_args, $arg, $args{$arg};
         }
         else {
-            croak "Invalid argument \"$arg\" to new(): only CLEANUP, DIR, and TEMPLATE are allowed."
+            croak qq{Invalid argument "$arg" to Directory::Scratch->new(): }.
+		   q{only CLEANUP, DIR, and TEMPLATE are allowed.};
         }
     }
 
@@ -55,7 +56,7 @@ sub new {
 	push @file_temp_args, (TMPDIR => 1);
     }
 
-    $self->{parent_args} = \%args;
+    $self->{_parent_args} = \%args;
 
     my $base = File::Temp::tempdir( @file_temp_args );
 
@@ -72,8 +73,8 @@ sub clone {
 
     if ( blessed $this && $this->isa( __PACKAGE__ ) ) {
         # copy args from parent object
-        if ( exists $this->{parent_args} && ref $this->{parent_args} eq 'HASH' ) {
-            %args = %{ $this->{parent_args} };
+        if ( exists $this->{_parent_args} && ref $this->{_parent_args} eq 'HASH' ) {
+            %args = %{ $this->{_parent_args} };
         }
 
         # force the directory end up as a child of the parent, though
@@ -99,7 +100,7 @@ sub exists {
     my $base = $self->base;
     my $path = File::Spec->catfile($base, $file);
     return $path if -e $path;
-    return;
+    return; # undef otherwise
 }
 
 sub mkdir {
@@ -126,7 +127,9 @@ sub link {
     $from = File::Spec->catfile($base, $from);
     $to   = File::Spec->catfile($base, $to);
 
-    symlink($from, $to) || croak "Couldn't link $from to $to: $!";
+    symlink($from, $to) 
+      or croak "Couldn't link $from to $to: $!";
+
     return $to;
 }
 
@@ -193,7 +196,8 @@ sub prepend {
     my $portable_file = File::Spec->catdir(@directories, $basename);
 
     unless ( -d $portable_path ) {
-        croak "Directory::Scratch::prepend() cannot function without write access to \"$file\"'s directory ($portable_path).";
+        croak  q{prepend() cannot function without write access to}.
+	      qq{"$file"'s directory ($portable_path).};#'
     }
 
     # create a temporary file in the same directory as the source file so
@@ -204,7 +208,7 @@ sub prepend {
     );
 
     my @tmpfile_spec = File::Spec->splitdir( $tmp->filename );
-    my $tmpfile = File::Spec->catdir( @tmpfile_spec );
+    my $tmpfile      = File::Spec->catdir( @tmpfile_spec );
 
     File::Copy::move( $portable_file, $tmpfile )
         || croak "Could not temporarily relocate file '$file' to '$tmpfile': $!";
@@ -222,10 +226,11 @@ sub prepend {
     my $append_size   = -s $portable_file;
 
     # now copy one file into the other line-by-line
-    open( my $input, "< $tmpfile" )
-        || croak "Could not open '$tmpfile' (your original file) for reading: $!";
-    open( my $output, ">> $portable_file" )
-        || croak "Could not open '$portable_file' for appending data from '$tmpfile': $!";
+    open(my $input, '<', $tmpfile)
+        or croak "Could not open '$tmpfile' (your original file) for reading: $!";
+    open( my $output, '>>', $portable_file)
+        or croak "Could not open '$portable_file' for appending data from '$tmpfile': $!";
+
     while ( <$input> ) {
         print $output $_;
     }
@@ -266,6 +271,7 @@ sub touch {
     open(my $fh, '>', $path)
         or croak "Failed to open $path: $!";
 
+    # behave differently when called as openfile()
     my (undef, undef, undef, $method) = caller(1);
     if ( $method && $method eq 'Directory::Scratch::openfile' ) {
         return $fh;
@@ -282,7 +288,7 @@ sub touch {
 }
 
 sub openfile {
-    return &touch(@_);
+    return &touch(@_); # more trickery.
 }
 
 sub ls {
@@ -300,7 +306,6 @@ sub ls {
     $base = File::Spec->catdir($base, $dir);
     
     # shoudln't be using this with files; but allow anyway
-
     if(!-d $self->exists($dir)){
 	return ($dir);
     }
@@ -335,13 +340,13 @@ sub delete {
 
     $path = File::Spec->catdir($base, $path);
     
-    croak "No such file or directory $path" if(!-e $path);
+    croak "No such file or directory '$path'" if !-e $path;
     
-    if(-d _){
-	return (rmdir $path or croak "Couldn't remove directory $path: $!");
+    if(-d _){ # reuse stat() from -e test
+	return (scalar rmdir $path or croak "Couldn't remove directory $path: $!");
     }
     else {
-	return (unlink $path or croak "Couldn't unlink $path: $!");
+	return (scalar unlink $path or croak "Couldn't unlink $path: $!");
     }
     
 }
@@ -356,13 +361,64 @@ sub cleanup {
         push @errors, [ @_ ];
     };
 
-    File::Path::rmtree( $base, 0, 1 );
+    File::Path::rmtree( $base );
 
     if ( @errors > 0 ) {
         croak "cleanup() method failed: $!\n@errors";
     }
 
-    $self->{called_cleanup} = 1;
+    return 1;
+}
+
+
+# randfile() needs to remember if it has loaded String::Random
+# and whether or not it succeeded between calls
+
+sub randfile {
+    my $self = shift;
+
+    my( $min, $max ) = ( 1024, 131072 );
+    if ( @_ == 2 ) {
+        ($min, $max) = @_;
+    }
+    elsif ( @_ == 1 ) {
+        $max = $_[0];
+    }
+
+    my( $fh, $name ) = File::Temp::tempfile( DIR => $self->base );
+
+    eval {
+	require String::Random;
+    };
+    
+    # string::random was required OK
+    if ( !$@ ) {
+        my $rand = String::Random->new();
+        print {$fh} $rand->randregex( ".{$min,$max}" );
+    }
+    
+    # apparently we don't have string::random
+    else {
+        # cheesy approach
+        my $target_len = rand($max);
+        while ( $target_len < $min || $target_len > $max ) {
+            $target_len = rand($max)
+        }
+        my $length = 0;
+        while ( $length < $target_len ) {
+            my $str = rand() . $/;
+            $length += length($str);
+
+            if ( $length > $max ) {
+                my $chop = $length - $max;
+                substr $str, 0, $chop, '';
+            }
+            print {$fh} $str;
+        }
+    }
+    close($fh);
+    
+    return $name;
 }
 
 # think of these as File::Slurp::Lite
@@ -378,10 +434,8 @@ sub read_file {
         @buffer = <$fh>;
     }
     else {
-        local $/ = undef;
-        $buffer = <$fh>;
+        $buffer = do { local $/; <$fh> };
     }
-
     close( $fh );
 
     return wantarray ? @buffer : $buffer;
@@ -565,6 +619,19 @@ Appends @lines to $file, as per C<write>.
 Backs up $file, writes the @lines to its original name, then appends
 the original file to that.
 
+=head2 randfile()
+
+Generates a file with random string data in it.   If String::Random is
+available, it will be used to generate the file's data.   If it's not, a very
+simplistic builtin generator is used (calls rand() a lot of times).   Takes 0,
+1, or 2 arguments - default size, max size, or size range.
+
+    my $file = $temp->randfile(); # size is between 1024 and 131072
+    my $file = $temp->randfile( 4192 ); # size is below 4129
+
+    # big files are probably very slow
+    my $file = $temp->randfile( 1000000, 4000000 ); # between 1000000 and 4000000
+
 =head2 link($from, $to)
 
 Symlinks a file in the temporary directory to another file in the
@@ -604,20 +671,20 @@ Ditto.
 Why a module for this?  Before the module, my tests usually looked
 like this:
 
-     use Test::More tests => 42;
-     use Foo::Bar;
+    use Test::More tests => 42;
+    use Foo::Bar;
 
-     my $TESTDIR = "/tmp/test.$$";
-     my $FILE    = "$TESTDIR/file";
-     mkdir $TESTDIR;
-     open(my $file, '>', $FILE);
-     print {$file} "test\n";
-     close($file);
-     ok(-e $FILE);
+    my $TESTDIR = "/tmp/test.$$";
+    my $FILE    = "$TESTDIR/file";
+    mkdir $TESTDIR;
+    open(my $file, '>', $FILE);
+    print {$file} "test\n";
+    close($file);
+    ok(-e $FILE);
 
-     # tests
-
-     END { `rm -rf $TESTDIR` }
+    # tests
+ 
+    END { `rm -rf $TESTDIR` }
 
 Nasty.  (What if rm doesn't work?  What if the test dies half way
 through?  What if /tmp doesn't exist? What if C</> isn't the path
@@ -640,16 +707,16 @@ Ahh, much better.
 
 =head1 PATCHES
 
-Commentary, patches, etc. are of course welcome, as well.  If you send a patch,
+Commentary, patches, etc. are of course welcome.  If you send a patch,
 try patching the subversion version available from:
 
 L<https://svn.jrock.us/cpan_modules/Directory-Scratch>
 
 =head1 SEE ALSO
 
- File::Temp
- File::Path
- File::Spec
+ L<File::Temp>
+ L<File::Path>
+ L<File::Spec>
 
 =head1 BUGS
 

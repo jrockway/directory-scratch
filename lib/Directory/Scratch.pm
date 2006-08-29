@@ -8,15 +8,14 @@ use strict;
 use Carp;
 use File::Temp;
 use File::Spec;
-use File::Copy ();
-use File::Path ();
+use File::Copy;
+use File::Path;
 use Scalar::Util qw(blessed);
-use Symbol ();
 
 use overload '""' => \&base,
   fallback => "yes, fallback";
 
-our $VERSION = '0.07_02';
+our $VERSION = '0.07_03';
 
 sub new {
     my $class = shift;
@@ -256,7 +255,15 @@ sub prepend {
 
 sub tempfile {
     my $self = shift;
-    File::Temp::tempfile( DIR => $self->base );
+    my $path = shift;
+    if(!defined $path){
+	$path = $self->base;
+    }
+    else {
+	$path = File::Spec->catfile($self->base, $path);
+    }
+    
+    return File::Temp::tempfile( DIR => $path );
 }
 
 sub touch {
@@ -440,12 +447,21 @@ sub randfile {
 # it happens to use Perl's buffered IO while IO::Slurp uses sys*
 sub read_file {
     my $file = shift;
+    my $args = shift;
+
+    my $binmode = $args->{binmode};
+
     my( $buffer, @buffer );
 
-    open( my $fh, "< $file" )
-        || croak "Could not open '$file' for reading: $!";
+    open my $fh, '<', $file
+      or croak "Could not open '$file' for reading: $!";
 
-    if ( wantarray ) {
+    if($binmode){
+	binmode $fh, $binmode 
+	  or croak "Could not set binmode $binmode on '$file': $!";
+    }
+
+    if (wantarray) {
         @buffer = <$fh>;
     }
     else {
@@ -457,35 +473,41 @@ sub read_file {
 }
 
 sub write_file {
-    my( $file, $args ) = splice @_, 0, 2;
-    my $fh = Symbol::gensym;
-
-    if ( $args->{append} ) {
-        open( $fh, ">> $file" )
-            || croak "Could not open '$file' for appending: $!";
+    my $file = shift;
+    my $args = shift;
+    
+    my $fh;
+    my $append  = $args->{append};
+    my $binmode = $args->{binmode};
+    
+    if ($append) {
+        open $fh, '>>', $file
+	  or croak "Could not open '$file' for appending: $!";
     }
     else {
-        open( $fh, "> $file" )
-            || croak "Could not open '$file' for writing: $!";
+        open $fh, '>', $file
+	  or croak "Could not open '$file' for writing: $!";
     }
-
-    if ( $args->{'binmode'} ) {
-        binmode($fh);
+    
+    if ($binmode) {
+        binmode $fh, $binmode
+	  or croak "Could not set binmode $binmode on $file: $!";
     }
-
+    
     my $list = \@_;
 
     if ( ref $_[0] eq 'ARRAY' ) {
         $list = $_[0];
     }
 
-    if ( @$list == 1 || $args->{'binmode'} ) {
-        print $fh @$list;
+    if ($binmode) {
+	# no output record separator
+        print {$fh} @$list;
     }
     else {
         foreach ( @$list ) {
             chomp;
-            print $fh $_, $/;
+            print {$fh} "$_$/" or croak "write error: $!";
         }
     }
     close $fh;
@@ -596,9 +618,12 @@ C<base>.
 The full path of this directory is returned if the operation is
 successful, otherwise an exception is thrown.
 
-=head2 tempfile
+=head2 tempfile([$path])
 
-Returns an empty filehandle + filename.   See File::Temp::tempfile.
+Returns an empty filehandle + filename in $path.  If $path is omitted,
+the base directory is assumed.
+
+See L<File::Temp::tempfile|File::Temp/FUNCTIONS/tempfile>.
 
     my($fh,$name) = $scratch->tempfile;
 
@@ -680,14 +705,15 @@ C<delete>-ing an unempty directory is an error.)
 Forces an immediate cleanup of the current object's directory.   See File::Path's
 rmtree().
 
-=head2 read_file [INTERNAL]
+=head2 read_file($path, \%args) [INTERNAL]
 
-A tiny implementation similar to IO::Slurp's read_file, but lighter and doesn't
-use sysread().
+A tiny implementation similar to IO::Slurp's read_file, but lighter
+and doesn't use sysread().  Accepts "binmode" as an argument, to set a
+binmode on the file.
 
 =head2 write_file [INTERNAL]
 
-Ditto.
+See above.
 
 =head1 RATIONALE 
 
@@ -700,9 +726,10 @@ like this:
     my $TESTDIR = "/tmp/test.$$";
     my $FILE    = "$TESTDIR/file";
     mkdir $TESTDIR;
-    open(my $file, '>', $FILE);
-    print {$file} "test\n";
-    close($file);
+    open(my $file, '>', $FILE) or die $!;
+    print {$file} "test\n" or die $!;
+    close($file) or die $!;
+
     ok(-e $FILE);
 
     # tests
@@ -717,23 +744,54 @@ Now they look like this:
 
      use Foo::Bar;
      use Directory::Scratch;
-      
+     use Test::More tests => 42;
+
      my  $tmp = Directory::Scratch->new;
-     my $FILE = $tmp->touch('file');
+     my $FILE = $tmp->touch('file', "test");
+
      ok(-e $FILE)
 
      # tests
 
 Portable.  Readable.  Clean.  
 
-Ahh, much better.
+Much better.
+
+=head2 TO THE NITPICKERS
+
+Many people have complained that the above rationale section isn't
+good enough.  I've never seen another module that even I<has> a
+rationale section, but whatever.  
+
+Here's how to do the same thing with File::Temp:
+
+    use Foo::Bar;
+    use File::Temp qw(tempdir);
+    use File::Spec::Functions qw(catfile);
+    use Test::More tests => 42;
+
+    my $TMPDIR = tempdir(CLEANUP => 1, TMPDIR => 1);
+    my $FILE   = catfile($TMPDIR, 'file');
+
+    open my $fh, '>', $file or die $!;
+    print {$fh} "test\n" or die $!;
+    close $fh or die $!;
+
+    ok(-e $FILE);
+
+    # tests
+
+
+I find Directory::Scratch easier to use, but this is Perl, so
+TMTOWTDI.  Please use what you prefer.  CPAN isn't a popularity
+contest.
 
 =head1 PATCHES
 
-Commentary, patches, etc. are of course welcome.  If you send a patch,
+Commentary, patches, etc. are most welcome.  If you send a patch,
 try patching the subversion version available from:
 
-L<https://svn.jrock.us/cpan_modules/Directory-Scratch>
+L<svn://svn.jrock.us/cpan_modules/Directory-Scratch>
 
 =head1 SEE ALSO
 
@@ -746,37 +804,21 @@ L<https://svn.jrock.us/cpan_modules/Directory-Scratch>
 Please report any bugs or feature through the web interface at
 L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Directory-Scratch>.
 
-=head1 SUPPORT
-
-You can find documentation for this module with the perldoc command.
-
-    perldoc Directory::Scratch
-
-You can also look for information at:
-
-=over 4
-
-=item * AnnoCPAN: Annotated CPAN documentation
-
-L<http://annocpan.org/dist/Directory-Scratch>
-
-=item * CPAN Ratings
-
-L<http://cpanratings.perl.org/d/Directory-Scratch>
-
-=item * RT: CPAN's request tracker
-
-L<http://rt.cpan.org/NoAuth/Bugs.html?Dist=Directory-Scratch>
-
-=item * CPAN Search
-
-L<http://search.cpan.org/dist/Directory-Scratch>
-
-=back
-
 =head1 ACKNOWLEDGEMENTS
 
-Thanks to Al Tobey (TOBEYA) for some excellent patches.
+Thanks to Al Tobey (TOBEYA) for some excellent patches, notably:
+
+=over
+
+=item Cloning
+
+=item Random Files
+
+=item C<tempfile>
+
+=item C<openfile>
+
+=back
 
 =head1 COPYRIGHT & LICENSE
 

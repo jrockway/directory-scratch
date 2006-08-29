@@ -254,6 +254,11 @@ sub prepend {
     return $result;
 }
 
+sub tempfile {
+    my $self = shift;
+    File::Temp::tempfile( DIR => $self->base );
+}
+
 sub touch {
     my $self = shift;
     my $file = shift;
@@ -370,7 +375,6 @@ sub cleanup {
     return 1;
 }
 
-
 # randfile() needs to remember if it has loaded String::Random
 # and whether or not it succeeded between calls
 
@@ -383,14 +387,22 @@ sub randfile {
     }
     elsif ( @_ == 1 ) {
         $max = $_[0];
+        $min = int(rand($max)) if ( $min > $max );
     }
 
-    my( $fh, $name ) = File::Temp::tempfile( DIR => $self->base );
+    confess "Cannot request a maximum length < 128 with randfile()."
+        if ( $max < 1 );
+
+    my( $fh, $name ) = $self->tempfile;
 
     eval {
+    # allow tests to control loading of String::Random so both
+    # methods can be tested
+	croak "skipping load of String::Random"
+        if exists $self->{skip_string_random};
 	require String::Random;
     };
-    
+
     # string::random was required OK
     if ( !$@ ) {
         my $rand = String::Random->new();
@@ -400,9 +412,12 @@ sub randfile {
     # apparently we don't have string::random
     else {
         # cheesy approach
-        my $target_len = rand($max);
-        while ( $target_len < $min || $target_len > $max ) {
-            $target_len = rand($max)
+        my $target_len = $max;
+        if ( $min != $max ) {
+            $target_len = rand($max);
+            while ( $target_len < $min || $target_len > $max ) {
+                $target_len = rand($max)
+            }
         }
         my $length = 0;
         while ( $length < $target_len ) {
@@ -581,6 +596,12 @@ C<base>.
 The full path of this directory is returned if the operation is
 successful, otherwise an exception is thrown.
 
+=head2 tempfile
+
+Returns an empty filehandle + filename.   See File::Temp::tempfile.
+
+    my($fh,$name) = $scratch->tempfile;
+
 =head2 touch($filename, [@lines])
 
 Creates a file named C<$filename>, optionally containing the elements
@@ -625,6 +646,8 @@ Generates a file with random string data in it.   If String::Random is
 available, it will be used to generate the file's data.   If it's not, a very
 simplistic builtin generator is used (calls rand() a lot of times).   Takes 0,
 1, or 2 arguments - default size, max size, or size range.
+
+A max size of 0 will cause an exception to be thrown.
 
     my $file = $temp->randfile(); # size is between 1024 and 131072
     my $file = $temp->randfile( 4192 ); # size is below 4129

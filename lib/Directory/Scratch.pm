@@ -65,7 +65,7 @@ sub new {
     return bless $self, $class;    
 }
 
-sub clone {
+sub child {
     my $this = shift;
     my $self;
     my %args;
@@ -534,7 +534,7 @@ Directory::Scratch - Easy-to-use self-cleaning scratch space.
 
 =head1 VERSION
 
-Version 0.07_01
+Version 0.07_03
 
 =cut
 
@@ -598,7 +598,7 @@ directory and its contents are removed.
 If C<DIR>, C<CLEANUP>, or C<TEMPLATE> are omitted, reasonable defaults
 are selected.  C<CLEANUP> is on by default, and C<DIR> is set to C<File::Spec->tmpdir>;
 
-=head2 clone
+=head2 child
 
 Creates a new C<Directory::Scratch> directory inside the current
 C<base>, copying TEMPLATE and CLEANUP options from the current
@@ -742,16 +742,16 @@ separator?  etc., etc.)
 
 Now they look like this:
 
-     use Foo::Bar;
-     use Directory::Scratch;
-     use Test::More tests => 42;
+    use Foo::Bar;
+    use Directory::Scratch;
+    use Test::More tests => 42;
 
-     my  $tmp = Directory::Scratch->new;
-     my $FILE = $tmp->touch('file', "test");
+    my  $tmp = Directory::Scratch->new;
+    my $FILE = $tmp->touch('file', "test");
 
-     ok(-e $FILE)
+    ok(-e $FILE)
 
-     # tests
+    # tests
 
 Portable.  Readable.  Clean.  
 
@@ -808,15 +808,17 @@ L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Directory-Scratch>.
 
 Thanks to Al Tobey (TOBEYA) for some excellent patches, notably:
 
-=over
+=over 4
 
-=item Cloning
+=item C<child>
 
-=item Random Files
+=item Random Files (C<randfile>)
 
 =item C<tempfile>
 
 =item C<openfile>
+
+=item C<readfile>, C<writefile>
 
 =back
 

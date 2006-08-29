@@ -15,9 +15,12 @@ t/05-readwrite.t
 t/06-append-prepend.t
 t/07-delete.t
 t/08-exists.t
+t/09-clone_object.t
 t/09-new_on_object.t
 t/10-new-with-arguments.t
 t/11-cleanup.t
+t/11-stringify.t
+t/12-randfile.t
 t/boilerplate.t
 t/pod-coverage.t
 t/pod.t

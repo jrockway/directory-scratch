@@ -8,6 +8,8 @@ use Carp;
 use File::Temp;
 use File::Copy;
 use Path::Class;
+use File::Slurp qw(read_file write_file);
+
 use Scalar::Util qw(blessed);
 
 use overload q{""} => \&base,
@@ -20,46 +22,35 @@ sub new {
     my $self  ={};
     my %args;
 
-    eval {
-	%args = @_;
-    };
-    if($@){
-        croak 'Invalid number of arguments to Directory::Scratch->new';
-    }
+    eval { %args = @_ };
+    croak 'Invalid number of arguments to Directory::Scratch->new' if $@;
     
     # explicitly default CLEANUP to 1
-    if(!exists $args{CLEANUP}){
-	$args{CLEANUP} = 1;
-    }
+    $args{CLEANUP} = 1 unless exists $args{CLEANUP};
     
-    # args to new() are passed on to File::Temp::tempdir
     # TEMPLATE is a special case, since it's positional in File::Temp
     my @file_temp_args;
-    foreach my $arg ( keys %args ) {
-        if ($arg eq 'TEMPLATE') {
-	    unshift @file_temp_args, $args{TEMPLATE};
-        }
-        elsif ($arg eq 'CLEANUP' || $arg eq 'DIR') {
-            push @file_temp_args, $arg, $args{$arg};
-        }
-        else {
-            croak qq{Invalid argument "$arg" to Directory::Scratch->new(): }.
-		   q{only CLEANUP, DIR, and TEMPLATE are allowed.};
-        }
-    }
 
-    # fix TEMPLATE to DWIM
-    if(exists $args{TEMPLATE} && !exists $args{DIR}){
-	push @file_temp_args, (TMPDIR => 1);
-    }
-
-    $self->{_parent_args} = \%args;
-
-    my $base = dir(File::Temp::tempdir(@file_temp_args));
+    # change our arg format to one that File::Temp::tempdir understands
+    push @file_temp_args, ($_ => $args{$_}) if $args{$_}
+      foreach(qw(CLEANUP DIR));
     
+    # this is a positional argument, not a named argument
+    unshift @file_temp_args, $args{TEMPLATE} if $args{TEMPLATE};
+    
+    # fix TEMPLATE to do what we mean; if TEMPLATE is set then TMPDIR
+    # needs to be set also
+
+    push @file_temp_args, (TMPDIR => 1)
+      if(exists $args{TEMPLATE} && !exists $args{DIR});
+    
+    # keep this around for C<child>
+    $self->{args} = \%args;
+
+    # create the directory!
+    my $base = dir(File::Temp::tempdir(@file_temp_args));
     croak "Couldn't create a tempdir: $!" unless -d $base;
     $self->{base} = $base;
-
     return bless $self, $class;    
 }
 
@@ -71,8 +62,7 @@ sub child {
       if !blessed $self || !$self->isa(__PACKAGE__);
     
     # copy args from parent object
-    %args = %{$self->{_parent_args}}
-      if exists $self->{_parent_args};
+    %args = %{$self->{_args}} if exists $self->{_args};
     
     # force the directory end up as a child of the parent, though
     $args{DIR} = $self->base;
@@ -114,7 +104,10 @@ sub link {
     my $from = shift;
     my $to   = shift;
     my $base = $self->base;
-    
+
+    croak "Symlinks are not supported on Win32" 
+      if $^O eq 'Win32';
+
     $from = File::Spec->catfile($base, $from);
     $to   = File::Spec->catfile($base, $to);
 
@@ -261,6 +254,15 @@ sub tempfile {
 sub touch {
     my $self = shift;
     my $file = shift;
+    my $fh   = $self->openfile($file);
+    my $data = join $/,@_;
+    write_file($fh, $data);
+    return $path;
+}
+
+sub openfile {
+    my $self = shift;
+    my $file = shift;
     my $base = $self->base;
     
     # create parent dir
@@ -269,30 +271,9 @@ sub touch {
 
     my $parents = File::Spec->catdir(@directories);
     $self->mkdir($parents) if $parents;
-    
     my $path = File::Spec->catfile($base, $file);
-
-    open(my $fh, '>', $path)
-        or croak "Failed to open $path: $!";
-
-    # behave differently when called as openfile()
-    my (undef, undef, undef, $method) = caller(1);
-    if ( $method && $method eq 'Directory::Scratch::openfile' ) {
-        return $fh;
-    }
-
-    # no need to copy @_, just use it directly for aliasing goodness
-    if ( @_ > 0 ) {
-        map {
-            print {$fh} $_, $/ or croak "Write error: $!"
-        } @_;
-        close($fh) or croak "Failed to close $path: $!";
-    }
-    return $path;
-}
-
-sub openfile {
-    return &touch(@_); # more trickery.
+    open(my $fh, '>', $path) or croak "Failed to open $path: $!";   
+    return $fh;
 }
 
 sub ls {
@@ -320,17 +301,12 @@ sub ls {
 	next if $file eq '..';
 	
 	my $full  = File::Spec->catfile($base, $file);
-	my $short;
-	if(!$dir || $dir eq '/'){
-	    $short = $file;
-	}
-	else {
-	    $short = File::Spec->catfile($dir, $file);
-	}
-	if(-d $full){
-	    push @result, $self->ls($short);
-	}
-	push @result, $short;
+	my $short = File::Spec->catfile($dir, $file);
+	$short = $file
+	  if(!$dir || $dir eq '/');
+	
+	push @result, $self->ls($short) if -d $full; #push child elements on
+	push @result, $short; # push ourselves on 
     }
     closedir $dh;
     
@@ -358,11 +334,11 @@ sub delete {
 sub cleanup {
     my $self = shift;
     my $base = $self->{base};
-
-    # see File::Path
+    
+    # capture warnings
     my @errors;
     local $SIG{__WARN__} = sub {
-        push @errors, [ @_ ];
+        push @errors, \@_;
     };
 
     File::Path::rmtree( $base );
@@ -371,6 +347,7 @@ sub cleanup {
         croak "cleanup() method failed: $!\n@errors";
     }
 
+    $self->{args}{CLEANUP} = 1; # it happened, so update this
     return 1;
 }
 
@@ -379,141 +356,37 @@ sub cleanup {
 
 sub randfile {
     my $self = shift;
-
+    eval {
+	require String::Random;
+    };
+    croak "Please install String::Random" if $@;
     my( $min, $max ) = ( 1024, 131072 );
+
     if ( @_ == 2 ) {
-        ($min, $max) = @_;
+	($min, $max) = @_;
     }
     elsif ( @_ == 1 ) {
         $max = $_[0];
         $min = int(rand($max)) if ( $min > $max );
     }
-
-    confess "Cannot request a maximum length < 128 with randfile()."
-        if ( $max < 1 );
-
-    my( $fh, $name ) = $self->tempfile;
-
-    eval {
-    # allow tests to control loading of String::Random so both
-    # methods can be tested
-	croak "skipping load of String::Random"
-        if exists $self->{skip_string_random};
-	require String::Random;
-    };
-
-    # string::random was required OK
-    if ( !$@ ) {
-        my $rand = String::Random->new();
-        print {$fh} $rand->randregex( ".{$min,$max}" );
-    }
+    confess "randfile: Cannot request a maximum length < 1"
+      if ( $max < 1 );
     
-    # apparently we don't have string::random
-    else {
-        # cheesy approach
-        my $target_len = $max;
-        if ( $min != $max ) {
-            $target_len = rand($max);
-            while ( $target_len < $min || $target_len > $max ) {
-                $target_len = rand($max)
-            }
-        }
-        my $length = 0;
-        while ( $length < $target_len ) {
-            my $str = rand() . $/;
-            $length += length($str);
-
-            if ( $length > $max ) {
-                my $chop = $length - $max;
-                substr $str, 0, $chop, '';
-            }
-            print {$fh} $str;
-        }
-    }
+    my( $fh, $name ) = $self->tempfile;
+    croak "Cannot open $name: $!" if !$fh;
+    
+    my $rand = String::Random->new();
+    write_file($fh, $rand->randregex( ".{$min,$max}" ));    
     close($fh);
     
     return $name;
 }
 
-# think of these as File::Slurp::Lite
-# it happens to use Perl's buffered IO while IO::Slurp uses sys*
-sub read_file {
-    my $file = shift;
-    my $args = shift;
-
-    my $binmode = $args->{binmode};
-
-    my( $buffer, @buffer );
-
-    open my $fh, '<', $file
-      or croak "Could not open '$file' for reading: $!";
-
-    if($binmode){
-	binmode $fh, $binmode 
-	  or croak "Could not set binmode $binmode on '$file': $!";
-    }
-
-    if (wantarray) {
-        @buffer = <$fh>;
-    }
-    else {
-        $buffer = do { local $/; <$fh> };
-    }
-    close( $fh );
-
-    return wantarray ? @buffer : $buffer;
-}
-
-sub write_file {
-    my $file = shift;
-    my $args = shift;
-    
-    my $fh;
-    my $append  = $args->{append};
-    my $binmode = $args->{binmode};
-    
-    if ($append) {
-        open $fh, '>>', $file
-	  or croak "Could not open '$file' for appending: $!";
-    }
-    else {
-        open $fh, '>', $file
-	  or croak "Could not open '$file' for writing: $!";
-    }
-    
-    if ($binmode) {
-        binmode $fh, $binmode
-	  or croak "Could not set binmode $binmode on $file: $!";
-    }
-    
-    my $list = \@_;
-
-    if ( ref $_[0] eq 'ARRAY' ) {
-        $list = $_[0];
-    }
-
-    if ($binmode) {
-	# no output record separator
-        print {$fh} @$list;
-    }
-    else {
-        foreach ( @$list ) {
-            chomp;
-            print {$fh} "$_$/" or croak "write error: $!";
-        }
-    }
-    close $fh;
-}
-
 # throw a warning if CLEANUP is off and cleanup hasn't been called
 sub DESTROY {
     my $self = shift;
-    if ( $self->{args} && exists $self->{args}{CLEANUP} ) {
-        carp "Not cleaning up files in $self->{base}."
-            unless ( $self->{args}{CLEANUP} || $self->{called_cleanup} );
-    }
-    
-    unlink $self->base;
+    carp "Warning: not cleaning up files in ". $self->{base}
+      if exists $self->{args}{CLEANUP};
 }
 
 1;
@@ -523,12 +396,6 @@ __END__
 =head1 NAME
 
 Directory::Scratch - Easy-to-use self-cleaning scratch space.
-
-=head1 VERSION
-
-Version 0.07_03
-
-=cut
 
 =head1 SYNOPSIS
 
@@ -696,16 +563,6 @@ C<delete>-ing an unempty directory is an error.)
 
 Forces an immediate cleanup of the current object's directory.   See File::Path's
 rmtree().
-
-=head2 read_file($path, \%args) [INTERNAL]
-
-A tiny implementation similar to IO::Slurp's read_file, but lighter
-and doesn't use sysread().  Accepts "binmode" as an argument, to set a
-binmode on the file.
-
-=head2 write_file [INTERNAL]
-
-See above.
 
 =head1 RATIONALE 
 

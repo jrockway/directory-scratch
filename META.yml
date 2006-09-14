@@ -1,0 +1,21 @@
+abstract: Easy-to-use self-cleaning scratch space.
+author: Jonathan Rockway <jrockway@cpan.org
+build_requires: 
+  Test::More: 0
+distribution_type: module
+generated_by: Module::Install version 0.63
+license: Perl
+name: Directory-Scratch
+no_index: 
+  directory: 
+    - inc
+    - t
+requires: 
+  Carp: 0
+  File::Copy: 0
+  File::Path: 0
+  File::Spec: 0
+  File::Temp: 0
+  Symbol: 0
+  Test::More: 0
+version: 0.09

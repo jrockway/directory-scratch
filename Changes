@@ -1,5 +1,14 @@
 Revision history for Directory-Scratch
 
+0.09    14 Septemeber 2006
+        * decided to go back to File::Slurp
+        * decided to croak if String::Random isn't installed
+        * using Path::Class internally
+        * added option to make UNIX paths Just Work on non-UNIX systems
+          (perl has this already, but this converts to the right format
+           internally, so that debugging messags make sense also)
+        * actually works on Win32 now
+
 0.08	3 September 2006
 	More cleanups:
 	 * clone => child

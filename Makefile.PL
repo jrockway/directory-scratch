@@ -1,33 +1,29 @@
+#!/usr/bin/perl
+# Makefile.PL
+# Copyright (c) 2006 Jonathan Rockway <jrockway@cpan.org>
+
 use strict;
 use warnings;
-use ExtUtils::MakeMaker;
+use inc::Module::Install;
 
-WriteMakefile(
-    NAME                => 'Directory::Scratch',
-    AUTHOR              => 'Jonathan Rockway <jrockway@cpan.org>',
-    VERSION_FROM        => 'lib/Directory/Scratch.pm',
-    ABSTRACT_FROM       => 'lib/Directory/Scratch.pm',
-    PL_FILES            => {},
-    PREREQ_PM => {
-		  'Test::More'  => 0,
-		  'File::Spec'  => 0,
-		  'File::Temp'  => 0,
-		  'File::Path'  => 0,
-		  'File::Copy'  => 0,
-		  'Symbol'      => 0,
-		  'Carp'        => 0,
-		 },
-    dist                => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
-    clean               => { FILES => 'Directory-Scratch-*' },
-);
+name('Directory-Scratch');
+author('Jonathan Rockway <jrockway@cpan.org');
+version_from('lib/Directory/Scratch.pm');
+abstract_from('lib/Directory/Scratch.pm');
+license('Perl');
+include('ExtUtils::AutoInstall');
 
-sub MY::postamble {
+requires(
+	 'Test::More'  => 0,
+	 'File::Spec'  => 0,
+	 'File::Temp'  => 0,
+	 'File::Path'  => 0,
+	 'File::Copy'  => 0,
+	 'Symbol'      => 0,
+	 'Carp'        => 0,
+	);
+build_requires('Test::More' => 0);
+features('String::Random for random files' => ['String::Random' => 0]);
 
-    return <<"EOP";
-cover: all
-\tcover -delete
-\tHARNESS_PERL_SWITCHES=-MDevel::Cover \$(MAKE) test
-\tcover
-EOP
-
-}
+auto_install();
+WriteAll();

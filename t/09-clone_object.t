@@ -11,9 +11,9 @@ use warnings;
 
 my $t = Directory::Scratch->new;
 isa_ok($t, 'Directory::Scratch'); 
-can_ok( $t, 'clone' );
+can_ok( $t, 'child' );
 
-ok( my $sub_t = $t->clone, "Call clone on a parent Directory::Scratch object." );
+ok( my $sub_t = $t->child, "Call child on a parent Directory::Scratch object." );
 
 my @parent = File::Spec->splitdir( $t->base );
 my @child  = File::Spec->splitdir( $sub_t->base );
@@ -28,7 +28,7 @@ chdir($t->base);
 
 ok( -d $subdir, "child subdirectory basename exists under parent" );
 
-ok( my $sub_sub_t = $sub_t->clone, "create a grandchild" );
+ok( my $sub_sub_t = $sub_t->child, "create a grandchild" );
 
 my $subsub_dir = $sub_sub_t->base;
 ok( -d $subsub_dir, "grandchild directory exists" );

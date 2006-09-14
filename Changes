@@ -1,5 +1,12 @@
 Revision history for Directory-Scratch
 
+0.08	3 September 2006
+	More cleanups:
+	 * clone => child
+	 * binmode
+	 * stringify
+	doc fixes
+
 0.06    22 August 2006
         Applied a patch (#21120) from TOBEYA.  API has changed a bit,
         but it's for the better.

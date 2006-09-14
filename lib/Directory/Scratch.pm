@@ -4,18 +4,16 @@ package Directory::Scratch;
 
 use warnings;
 use strict;
-
 use Carp;
 use File::Temp;
-use File::Spec;
 use File::Copy;
-use File::Path;
+use Path::Class;
 use Scalar::Util qw(blessed);
 
-use overload '""' => \&base,
+use overload q{""} => \&base,
   fallback => "yes, fallback";
 
-our $VERSION = '0.07_03';
+our $VERSION = '0.09';
 
 sub new {
     my $class = shift;
@@ -26,7 +24,7 @@ sub new {
 	%args = @_;
     };
     if($@){
-        croak "Invalid number of arguments to Directory::Scratch->new().";
+        croak 'Invalid number of arguments to Directory::Scratch->new';
     }
     
     # explicitly default CLEANUP to 1
@@ -38,10 +36,10 @@ sub new {
     # TEMPLATE is a special case, since it's positional in File::Temp
     my @file_temp_args;
     foreach my $arg ( keys %args ) {
-        if ( $arg eq 'TEMPLATE' ) {
-            unshift @file_temp_args, $args{TEMPLATE};
+        if ($arg eq 'TEMPLATE') {
+	    unshift @file_temp_args, $args{TEMPLATE};
         }
-        elsif ( $arg eq 'CLEANUP' || $arg eq 'DIR' ) {
+        elsif ($arg eq 'CLEANUP' || $arg eq 'DIR') {
             push @file_temp_args, $arg, $args{$arg};
         }
         else {
@@ -57,8 +55,8 @@ sub new {
 
     $self->{_parent_args} = \%args;
 
-    my $base = File::Temp::tempdir( @file_temp_args );
-
+    my $base = dir(File::Temp::tempdir(@file_temp_args));
+    
     croak "Couldn't create a tempdir: $!" unless -d $base;
     $self->{base} = $base;
 
@@ -66,26 +64,20 @@ sub new {
 }
 
 sub child {
-    my $this = shift;
-    my $self;
+    my $self = shift;
     my %args;
-
-    if ( blessed $this && $this->isa( __PACKAGE__ ) ) {
-        # copy args from parent object
-        if ( exists $this->{_parent_args} && ref $this->{_parent_args} eq 'HASH' ) {
-            %args = %{ $this->{_parent_args} };
-        }
-
-        # force the directory end up as a child of the parent, though
-        $args{DIR} = $this->base;
-	
-	$self = Directory::Scratch->new(%args);
-    }
-    else {
-	croak "Invalid reference passed to Directory::Scratch->clone";
-    }
     
-    return $self;
+    croak 'Invalid reference passed to Directory::Scratch->child'
+      if !blessed $self || !$self->isa(__PACKAGE__);
+    
+    # copy args from parent object
+    %args = %{$self->{_parent_args}}
+      if exists $self->{_parent_args};
+    
+    # force the directory end up as a child of the parent, though
+    $args{DIR} = $self->base;
+    
+    return Directory::Scratch->new(%args);
 }
 
 sub base {

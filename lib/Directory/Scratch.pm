@@ -7,16 +7,31 @@ use strict;
 use Carp;
 use File::Temp;
 use File::Copy;
-use Path::Class;
+use Path::Class qw(dir file);
 use File::Slurp qw(read_file write_file);
 
+my $platform = 'Unix';
 use Scalar::Util qw(blessed);
 
 use overload q{""} => \&base,
   fallback => "yes, fallback";
 
+
 our $VERSION = '0.09';
 
+# allow the user to specify which OS's semantics he wants to use
+# if platform is undef, then we won't do any translation at all
+sub import {
+    my $class = shift;
+    return unless @_;
+    $platform = shift;
+    eval { require 'File::Spec::$platform'} if $platform;
+    croak "Don't know how to deal with $platform" if $@;
+    warn 'using $platform';
+    return $platform;
+}
+
+# create an instance
 sub new {
     my $class = shift;
     my $self  ={};
@@ -31,18 +46,20 @@ sub new {
     # TEMPLATE is a special case, since it's positional in File::Temp
     my @file_temp_args;
 
+    # convert DIR from their format to a Path::Class
+    $args{DIR} = foreign_dir($platform, $args{DIR}) if $args{DIR};
+    
     # change our arg format to one that File::Temp::tempdir understands
-    push @file_temp_args, ($_ => $args{$_}) if $args{$_}
-      foreach(qw(CLEANUP DIR));
+    for(qw(CLEANUP DIR)){
+	push @file_temp_args, ($_ => $args{$_}) if $args{$_};
+    }
     
     # this is a positional argument, not a named argument
     unshift @file_temp_args, $args{TEMPLATE} if $args{TEMPLATE};
     
     # fix TEMPLATE to do what we mean; if TEMPLATE is set then TMPDIR
     # needs to be set also
-
-    push @file_temp_args, (TMPDIR => 1)
-      if(exists $args{TEMPLATE} && !exists $args{DIR});
+    push @file_temp_args, (TMPDIR => 1) if($args{TEMPLATE} && !$args{DIR});
     
     # keep this around for C<child>
     $self->{args} = \%args;
@@ -51,7 +68,10 @@ sub new {
     my $base = dir(File::Temp::tempdir(@file_temp_args));
     croak "Couldn't create a tempdir: $!" unless -d $base;
     $self->{base} = $base;
-    return bless $self, $class;    
+
+    bless $self, $class;    
+    $self->platform($platform || $args{platform}); # set platform for this instance
+    return $self;
 }
 
 sub child {
@@ -72,14 +92,54 @@ sub child {
 
 sub base {
     my $self = shift;
-    return $self->{base};
+    return $self->{base}->stringify;
+}
+
+sub platform {
+    my $self = shift;
+    my $desired = shift;
+
+    if($desired){
+	eval {
+	    require "File::Spec::$desired";
+	};
+	croak "Unknown platform $desired" if $@;
+	$self->{platform} = $desired;
+    }
+    
+    return $self->{platform};
+}
+
+# make Path::Class's foreign_* respect the instance's desired platform
+sub _foreign_file {
+    my $self = shift;
+    my $platform = $self->platform;
+
+    if($platform){
+	return Path::Class::file(Path::Class::foreign_file($platform, @_));
+    }
+    else {
+	return Path::Class::file(@_);
+    }
+}
+
+sub _foreign_dir {
+    my $self = shift;
+    my $platform = $self->platform;
+
+    if($platform){
+	return Path::Class::dir(Path::Class::foreign_dir($platform, @_));
+    }
+    else {
+	return Path::Class::dir(@_);
+    }
 }
 
 sub exists {
     my $self = shift;
     my $file = shift;
     my $base = $self->base;
-    my $path = File::Spec->catfile($base, $file);
+    my $path = $self->_foreign_file($base, $file);
     return $path if -e $path;
     return; # undef otherwise
 }
@@ -89,9 +149,9 @@ sub mkdir {
     my $dir  = shift;
     my $base = $self->base;
 
-    my @directories = File::Spec->splitdir($dir);
+    my @directories = $self->_foreign_dir($dir)->dir_list;
     foreach my $directory (@directories){
-	$base = File::Spec->catdir($base, $directory);
+	$base = dir($base, $directory);
 	mkdir $base;
 	croak "Failed to create $base: $!" if !-d $base;
     }
@@ -108,12 +168,12 @@ sub link {
     croak "Symlinks are not supported on Win32" 
       if $^O eq 'Win32';
 
-    $from = File::Spec->catfile($base, $from);
-    $to   = File::Spec->catfile($base, $to);
+    $from = $self->_foreign_file($base, $from);
+    $to   = $self->_foreign_file($base, $to);
 
     symlink($from, $to) 
       or croak "Couldn't link $from to $to: $!";
-
+    
     return $to;
 }
 
@@ -123,7 +183,7 @@ sub read {
     my $file = shift;
     my $base = $self->base;
     
-    $file = File::Spec->catfile($base, $file);
+    $file = $self->_foreign_file($base, $file);
     
     if(wantarray){
 	my @lines = read_file($file);
@@ -257,7 +317,7 @@ sub touch {
     my $fh   = $self->openfile($file);
     my $data = join $/,@_;
     write_file($fh, $data);
-    return $path;
+    return $file;
 }
 
 sub openfile {
@@ -318,7 +378,7 @@ sub delete {
     my $path = shift;
     my $base = $self->base;
 
-    $path = File::Spec->catdir($base, $path);
+    $path = foreign_file($platform, $base, $path);
     
     croak "No such file or directory '$path'" if !-e $path;
     
@@ -338,9 +398,9 @@ sub cleanup {
     # capture warnings
     my @errors;
     local $SIG{__WARN__} = sub {
-        push @errors, \@_;
+        push @errors, @_;
     };
-
+    
     File::Path::rmtree( $base );
 
     if ( @errors > 0 ) {
@@ -379,14 +439,14 @@ sub randfile {
     write_file($fh, $rand->randregex( ".{$min,$max}" ));    
     close($fh);
     
-    return $name;
+    return file($name);
 }
 
 # throw a warning if CLEANUP is off and cleanup hasn't been called
 sub DESTROY {
     my $self = shift;
     carp "Warning: not cleaning up files in ". $self->{base}
-      if exists $self->{args}{CLEANUP};
+      if !$self->{args}{CLEANUP};
 }
 
 1;
@@ -429,6 +489,48 @@ Example:
     $temp->touch('foo');
     ok(-e "$temp/foo");  # /tmp/xYz837/foo should exist 
 
+=head1 EXPORT
+
+The first argument to the module is optional, but if specified, it's
+interperted as the name of the OS whose file naming semantics you want
+to use with Directory::Scratch.  For example, if you choose "Unix",
+then you can provide paths to Directory::Scratch in UNIX-form
+('foo/bar/baz') on any platform.  Unix is the default if you don't
+choose anything explicitly.
+
+If you want to use the local platform's flavor (not recommended),
+specify an empty import list:
+
+    use Directory::Scratch ''; # use local path flavor
+
+Recognized platforms (from L<File::Spec|File::Spec>):
+
+=over 4
+
+=item Mac
+
+=item UNIX
+
+=item Win32
+
+=item VMS
+
+=item OS2
+
+=back
+
+The names are case sensitive, since they simply specify which
+C<File::Spec::> module to use when splitting the path.
+
+=head2 EXAMPLE
+
+    use Directory::Scratch 'Win32';
+    my $tmp = Directory::Scratch->new();
+    $tmp->touch('C:\foo\bar\baz'); # and so on
+
+Note that C:\ is actually ignored, since you are trapped inside a
+tmpdir somewhere.  Hence, you should stick to relative paths.
+
 =head1 METHODS
 
 The file arguments to these methods are always relative to the
@@ -466,6 +568,16 @@ instance.  Returns a C<Directory::Scratch> object.
 =head2 base
 
 Returns the full path of the temporary directory.
+
+=head2 platform([$platform])
+
+Returns the name of the platform that the filenames are being
+interperted as (i.e., "Win32" means that this module expects paths
+like C<\foo\bar>, whereas "UNIX" means it expects C</foo/bar>).
+
+If $platform is sepcified, the platform is changed to the passed
+value.  (Overrides the platform specified at module C<use> time, for
+I<this instance> only.)
 
 =head2 mkdir
 

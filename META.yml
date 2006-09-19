@@ -3,7 +3,7 @@ author: Jonathan Rockway <jrockway@cpan.org
 build_requires: 
   Test::More: 0
 distribution_type: module
-generated_by: Module::Install version 0.63
+generated_by: Module::Install version 0.64
 license: Perl
 name: Directory-Scratch
 no_index: 

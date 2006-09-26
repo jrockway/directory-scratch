@@ -3,13 +3,16 @@
 # Copyright (c) 2006 Rockway <jrockway@cpan.org>
 # Copyright (c) 2006 Al Tobey <tobeya@cpan.org>
 
-use Test::More tests => 190;
+use Test::More tests => 109;
 use Directory::Scratch;
+eval "use String::Random";
+plan skip_all => "Requires String::Random" if $@;
+plan tests => 109;
 
 # I run local tests of 512 or more to exhaust the chances entropy is causing
 # tests to pass that might fail on client machines
 # 20 should suffice for clients downloading from CPAN
-our $loop_iterations = 20;
+my $loop_iterations = 20;
 
 my $temp = Directory::Scratch->new;
 
@@ -30,23 +33,7 @@ sub test_iterations {
     }
 }
 
-$temp->{skip_string_random} = 1;
 test_iterations();
-
-eval {
-    use lib qw( ../lib );
-    require String::Random;
-};
-SKIP: {
-    skip "String::Random not installed or broken", ($loop_iterations * 4)
-        if $@;    
-    test_iterations();
-}
-
-eval {
-    $temp->randfile(0);
-};
-ok( $@, "randfile(0) throws an exception as expected" );
 
 my $j = 1;
 for ( my $i=1; $i<=1000000; $i *= 10 ) {

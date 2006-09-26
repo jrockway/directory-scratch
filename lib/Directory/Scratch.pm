@@ -276,26 +276,35 @@ sub ls {
     my $self = shift;
     my $dir = shift;
     my $base = $self->base;
+
     my @result;
-
-    $dir = $self->_foreign_dir($dir);
-    my $path = $self->exists($dir);    
-    return () if !$path;
-    return (file($dir)) if !-d $path;
-
-    $path = dir($base, $dir);
+    my $path;
+    
+    if($dir){
+	$dir = $self->_foreign_dir($dir); 
+	$path = $self->exists($dir);    
+	return () if !$path;
+	return (file($dir)) if !-d $path;
+	$path = dir($base, $dir);
+    }
+    else {
+	$path = dir($base);
+    }
     
     opendir my $dh, $path or croak "Failed to open directory $base: $!";
     while(my $file = readdir $dh){
 	next if $file eq '.';
 	next if $file eq '..';
-	my $full  = file($base, $dir, $file);
+
+	my $full;
 	my $short;
 	if($dir){
 	    $short = file($dir, $file);
+	    $full  = file($base, $dir, $file);
 	}
 	else {
 	    $short = file($file);
+	    $full  = file($base, $file);
 	}
 	
 	$short = $file if(!$dir || $dir eq '/');

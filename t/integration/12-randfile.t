@@ -3,7 +3,7 @@
 # Copyright (c) 2006 Rockway <jrockway@cpan.org>
 # Copyright (c) 2006 Al Tobey <tobeya@cpan.org>
 
-use Test::More tests => 109;
+use Test::More;
 use Directory::Scratch;
 eval "use String::Random";
 plan skip_all => "Requires String::Random" if $@;

@@ -279,9 +279,7 @@ sub ls {
 
     my @result;
     my $path;
-
-    undef $dir if dir($dir) eq dir("");
-    
+     
     if($dir){
 	$dir = $self->_foreign_dir($dir); 
 	$path = $self->exists($dir);    

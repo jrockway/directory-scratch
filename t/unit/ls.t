@@ -21,8 +21,9 @@ is_deeply(\@files, [qw(bar bar/baz bar/baz/quux bar/quux foo)]);
 
 @files = sort $tmp->ls('this filename is fake');
 is(scalar @files, 0, 'no fake files [scalar]');
+{ no warnings;
 ok(@files == (), 'no fake files [list]');
-
+}
 @files = sort $tmp->ls('foo');
 is_deeply(\@files, [qw(foo)], 'single file = list');
 

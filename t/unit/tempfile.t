@@ -18,7 +18,7 @@ ok(close $fh, 'closed fh');
 ok(-e $filename, 'file exists');
 
 # try this in scalar context
-my $fh = $tmp->tempfile;
+$fh = $tmp->tempfile;
 ok($fh, 'got a filehandle');
 ok(print {$fh} "A line\n");
 ok(seek $fh, 0, 0);

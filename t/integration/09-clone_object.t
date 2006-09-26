@@ -5,7 +5,6 @@
 
 use Directory::Scratch;
 use Test::More tests=>12;
-use File::Spec;
 use strict;
 use warnings;
 
@@ -13,10 +12,11 @@ my $t = Directory::Scratch->new;
 isa_ok($t, 'Directory::Scratch'); 
 can_ok( $t, 'child' );
 
-ok( my $sub_t = $t->child, "Call child on a parent Directory::Scratch object." );
+ok( my $sub_t = $t->child, 
+    "Call child on a parent Directory::Scratch object." );
 
-my @parent = File::Spec->splitdir( $t->base );
-my @child  = File::Spec->splitdir( $sub_t->base );
+my @parent = $t->base->dir_list;
+my @child  = $sub_t->base->dir_list;
 
 ok( @child > @parent, "Child should have more nodes than the parent." );
 my $subdir = pop @child;

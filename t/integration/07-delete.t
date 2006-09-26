@@ -29,7 +29,11 @@ ok(!$t->exists('foo'));
 ok(!$t->exists('foo/bar'));
 
 ok($t->touch('foo'));
-ok($t->link('foo', 'bar'));
-ok($t->exists('bar'));
-ok($t->delete('bar'));
-ok(!$t->exists('bar'));
+
+SKIP: {
+    skip 'no links on win32', 4 if $^O eq 'MSWin32';
+    ok($t->link('foo', 'bar'));
+    ok($t->exists('bar'));
+    ok($t->delete('bar'));
+    ok(!$t->exists('bar'));
+}

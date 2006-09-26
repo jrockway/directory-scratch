@@ -84,14 +84,14 @@ sub child {
     %args = %{$self->{_args}} if exists $self->{_args};
     
     # force the directory end up as a child of the parent, though
-    $args{DIR} = $self->base;
+    $args{DIR} = $self->base->stringify;
     
     return Directory::Scratch->new(%args);
 }
 
 sub base {
     my $self = shift;
-    return $self->{base}->stringify;
+    return $self->{base};#->stringify;
 }
 
 sub platform {
@@ -353,7 +353,7 @@ sub cleanup {
         push @errors, @_;
     };
     
-    File::Path::rmtree( $base );
+    File::Path::rmtree( $base->stringify );
 
     if ( @errors > 0 ) {
         croak "cleanup() method failed: $!\n@errors";
@@ -398,7 +398,7 @@ sub randfile {
 # throw a warning if CLEANUP is off and cleanup hasn't been called
 sub DESTROY {
     my $self = shift;
-    carp "Warning: not cleaning up files in ". $self->{base}
+    carp "Warning: not cleaning up files in ". $self->base
       if !$self->{args}->{CLEANUP};
 }
 

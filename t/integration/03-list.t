@@ -40,7 +40,7 @@ is_deeply(\@result, \@list, "listed everything (with /)");
 
 @result = sort $t->ls('1');
 
-my @possible = map {File::Spec->catfile("1", $_)} qw(bar baz foo);
+my @possible = map {file('1', $_)} qw(bar baz foo);
 
 is_deeply(\@result, \@possible, 'listed 1');
 

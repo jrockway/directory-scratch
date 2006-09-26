@@ -30,6 +30,6 @@ $base = $tmp->base;
 $SIG{__WARN__} = sub {};
 ok(-e $base);
 undef $tmp;
-File::Path::rmtree($base, 0, 1);
+File::Path::rmtree($base->stringify, 0, 1);
 ok(!-e $base, 'cleaned up manually OK');
 

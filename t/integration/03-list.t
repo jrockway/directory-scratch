@@ -34,7 +34,7 @@ my @result = $t->ls;
 
 is_deeply(\@result, \@list, "listed everything");
 
-@result = $t->ls('/');
+@result = $t->ls;
 @result = sort @result;
 is_deeply(\@result, \@list, "listed everything (with /)");
 

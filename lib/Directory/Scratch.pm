@@ -481,10 +481,7 @@ C<File::Spec::> module to use when splitting the path.
 
     use Directory::Scratch 'Win32';
     my $tmp = Directory::Scratch->new();
-    $tmp->touch('C:\foo\bar\baz'); # and so on
-
-Note that C:\ is actually ignored, since you are trapped inside a
-tmpdir somewhere.  Hence, you should stick to relative paths.
+    $tmp->touch("foo\\bar\\baz"); # and so on
 
 =head1 METHODS
 
@@ -493,7 +490,8 @@ temporary directory.  If you specify C<touch('/etc/passwd')>, then a
 file called C</tmp/whatever/etc/passwd> will be created instead.
 
 This means that the program's PWD is ignored (for these methods), and
-that a leading C</> on the filename is meaningless.
+that a leading C</> on the filename is meaningless (and will cause
+portability problems).
 
 Finally, whenever a filename or path is returned, it is a
 L<Path::Class|Path::Class> object rather than a string containing the

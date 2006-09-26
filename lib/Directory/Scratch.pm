@@ -290,7 +290,14 @@ sub ls {
 	next if $file eq '.';
 	next if $file eq '..';
 	my $full  = file($base, $dir, $file);
-	my $short = file($dir, $file);
+	my $short;
+	if($dir){
+	    $short = file($dir, $file);
+	}
+	else {
+	    $short = file($file);
+	}
+	
 	$short = $file if(!$dir || $dir eq '/');
 
 	#print {*STDERR} "[$base][$file: $short -> $full]\n";

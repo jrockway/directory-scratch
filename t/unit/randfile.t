@@ -4,8 +4,8 @@
 
 use Test::More;
 use Directory::Scratch;
-plan skip_all => "Requires String::Random" 
-  unless eval { require String::Random };
+eval "use String::Random";
+plan skip_all => "Requires String::Random" if $@;
 plan tests => 321;
 
 my $tmp = Directory::Scratch->new;

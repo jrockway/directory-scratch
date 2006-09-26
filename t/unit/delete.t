@@ -4,6 +4,8 @@
 
 use Test::More tests => 17;
 use Directory::Scratch;
+use strict;
+use warnings;
 
 my $tmp = Directory::Scratch->new;
 ok($tmp, '1 ko'); # palindromic > informative 

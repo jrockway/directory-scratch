@@ -4,6 +4,8 @@
 
 use Test::More tests => 6;
 use Directory::Scratch;
+use strict;
+use warnings;
 
 my $tmp = Directory::Scratch->new;
 ok($tmp, 'created $tmp');

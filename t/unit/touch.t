@@ -4,6 +4,8 @@
 
 use Test::More tests => 8;
 use Directory::Scratch;
+use strict;
+use warnings;
 use File::Slurp qw(read_file);
 
 my $tmp = Directory::Scratch->new;

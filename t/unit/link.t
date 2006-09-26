@@ -4,6 +4,8 @@
 
 use Test::More;
 use Directory::Scratch;
+use strict;
+use warnings;
 
 plan skip_all => "Win32 can't symlink" if $^O eq 'Win32';
 plan tests => 4;

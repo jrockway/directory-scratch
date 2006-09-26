@@ -3,6 +3,8 @@
 # Copyright (c) 2006 Jonathan Rockway <jrockway@cpan.org>
 use Test::More tests => 6;
 use Directory::Scratch;
+use strict;
+use warnings;
 
 my $tmp = Directory::Scratch->new;
 ok($tmp, 'created $tmp');

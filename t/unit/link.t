@@ -7,7 +7,7 @@ use Directory::Scratch;
 use strict;
 use warnings;
 
-plan skip_all => "Win32 can't symlink" if $^O eq 'Win32';
+plan skip_all => "Win32 can't symlink" if $^O eq 'MSWin32';
 plan tests => 4;
 
 my $tmp = Directory::Scratch->new;

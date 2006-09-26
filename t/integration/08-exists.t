@@ -18,4 +18,4 @@ my $foobar = $t->touch('foo/bar');
 ok($foobar);
 is($t->exists('foo/bar'), $foobar);
 ok($t->exists('foo'));
-ok($t->exists('foo') =~ /$base.foo/);
+ok($t->exists('foo') =~ /foo$/);

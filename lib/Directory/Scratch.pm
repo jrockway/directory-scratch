@@ -160,8 +160,8 @@ sub link {
     my $to   = shift;
     my $base = $self->base;
 
-    croak "Symlinks are not supported on Win32" 
-      if $^O eq 'Win32';
+    croak "Symlinks are not supported on MSWin32" 
+      if $^O eq 'MSWin32';
 
     $from = $self->_foreign_file($base, $from);
     $to   = $self->_foreign_file($base, $to);
@@ -341,7 +341,7 @@ sub cleanup {
         croak "cleanup() method failed: $!\n@errors";
     }
 
-    $self->{args}{CLEANUP} = 1; # it happened, so update this
+    $self->{args}->{CLEANUP} = 1; # it happened, so update this
     return 1;
 }
 
@@ -381,7 +381,7 @@ sub randfile {
 sub DESTROY {
     my $self = shift;
     carp "Warning: not cleaning up files in ". $self->{base}
-      if !$self->{args}{CLEANUP};
+      if !$self->{args}->{CLEANUP};
 }
 
 1;

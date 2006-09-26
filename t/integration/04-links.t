@@ -3,9 +3,11 @@
 # Copyright (c) 2006 Jonathan Rockway <jrockway@cpan.org>
 
 use Directory::Scratch;
-use Test::More tests=>13;
+use Test::More;
 use strict;
 use warnings;
+plan skip_all => "links don't work under Win32" if $^O eq 'MSWin32';
+plan tests => 14;
 
 my $t = Directory::Scratch->new;
 my $file1 = $t->touch('test', "this is a test");
@@ -27,8 +29,8 @@ is($t->read('foo/test'), "this is also a test");
 is($t->read('newer_test'), "this is also a test");
 is($t->read('new_foo/test'), "this is also a test");
 
+ok($t->touch('bar'));
 eval {
-    $t->touch('bar');
     $t->link('test', 'bar');
 };
 ok($@, 'cannot link over an existing file');

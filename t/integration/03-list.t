@@ -6,7 +6,7 @@ use strict;
 use warnings;
 use Test::More tests=>17;
 use Directory::Scratch;
-use File::Spec;
+use Path::Class;
 
 my @files = qw(foo bar baz);
 my @dirs  = qw(1 2 3);
@@ -19,7 +19,7 @@ foreach my $dir (@dirs){
     ok($tmp, "mkdir $dir");
     push @list, $dir;
     foreach my $file (@files){
-	my $name = File::Spec->catdir($dir, $file);
+	my $name = file($dir, $file);
 	$tmp = $t->touch($name); 
 	ok($tmp, "touch $tmp");
 	push @list, $name;

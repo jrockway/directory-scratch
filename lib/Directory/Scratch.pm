@@ -198,7 +198,9 @@ sub write {
     my $base = $self->base;
     
     my $path = $self->_foreign_file($base, $file);
-    $self->mkdir($path->dir);
+    $path->parent->mkpath;
+    croak "Couldn't create parent dir ". $path->parent. ": $!"
+      unless -e $path->parent;
     
     # figure out if we're "write" or "append"
     my (undef, undef, undef, $method) = caller(1);
@@ -587,7 +589,7 @@ of the entire file.
 
 Replaces the contents of file with @lines.  Each line will be ended
 with a C<\n>, or C<$,> if it is defined.  The file will be created if
-necessary, but parent directories (if any) will not be.
+necessary.
 
 =head2 append($file, @lines)
 

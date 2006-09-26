@@ -28,4 +28,4 @@ is_deeply([$t->read('baz')], [qw(foo bar baz yay!)]);
 eval {
     $t->write('/made/up/filename', qw(foo bar));
 };
-ok(!$@, "didn't get an error");
+ok($@, "got an error");

@@ -14,16 +14,21 @@ license('Perl');
 include('ExtUtils::AutoInstall');
 
 requires(
-	 'Test::More'  => 0,
-	 'File::Spec'  => 0,
 	 'File::Temp'  => 0,
 	 'File::Path'  => 0,
+	 'File::Slurp' => 0,
+	 'Path::Class' => 0,
 	 'File::Copy'  => 0,
-	 'Symbol'      => 0,
 	 'Carp'        => 0,
 	);
-build_requires('Test::More' => 0);
-features('String::Random for random files' => ['String::Random' => 0]);
+build_requires(
+	 'Test::More' => 0
+	);
+features(
+	 'String::Random for random files' => 
+	    ['String::Random' => 0]
+	);
 
+tests('t/*/*.t');
 auto_install();
 WriteAll();

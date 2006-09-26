@@ -25,9 +25,8 @@ sub import {
     my $class = shift;
     return unless @_;
     $platform = shift;
-    eval { require 'File::Spec::$platform'} if $platform;
-    croak "Don't know how to deal with $platform" if $@;
-    warn 'using $platform';
+    eval("require File::Spec::$platform") if $platform;
+    croak "Don't know how to deal with platform '$platform'" if $@;
     return $platform;
 }
 
@@ -47,7 +46,7 @@ sub new {
     my @file_temp_args;
 
     # convert DIR from their format to a Path::Class
-    $args{DIR} = foreign_dir($platform, $args{DIR}) if $args{DIR};
+    $args{DIR} = Path::Class::foreign_dir($platform, $args{DIR}) if $args{DIR};
     
     # change our arg format to one that File::Temp::tempdir understands
     for(qw(CLEANUP DIR)){
@@ -101,9 +100,9 @@ sub platform {
 
     if($desired){
 	eval {
-	    require "File::Spec::$desired";
+	    require "File/Spec/$desired.pm";
 	};
-	croak "Unknown platform $desired" if $@;
+	croak "Unknown platform '$desired'" if $@;
 	$self->{platform} = $desired;
     }
     
@@ -140,6 +139,7 @@ sub exists {
     my $file = shift;
     my $base = $self->base;
     my $path = $self->_foreign_file($base, $file);
+    return dir($path) if -d $path;
     return $path if -e $path;
     return; # undef otherwise
 }
@@ -148,15 +148,10 @@ sub mkdir {
     my $self = shift;
     my $dir  = shift;
     my $base = $self->base;
-
-    my @directories = $self->_foreign_dir($dir)->dir_list;
-    foreach my $directory (@directories){
-	$base = dir($base, $directory);
-	mkdir $base;
-	croak "Failed to create $base: $!" if !-d $base;
-    }
-    
-    return $base;
+    $dir = $self->_foreign_dir($base, $dir);
+    $dir->mkpath;
+    return $dir if (-e $dir && -d $dir);
+    croak "Error creating $dir: $!";
 }
 
 sub link {
@@ -186,155 +181,94 @@ sub read {
     $file = $self->_foreign_file($base, $file);
     
     if(wantarray){
-	my @lines = read_file($file);
+	my @lines = read_file($file->stringify);
 	chomp @lines;
 	return @lines;
     }
     else {
-	my $scalar = read_file($file);
+	my $scalar = read_file($file->stringify);
 	chomp $scalar;
 	return $scalar;
     }
 }
 
 sub write {
-    my $self   = shift;
-    my $file   = shift;
-    my $base   = $self->base;
+    my $self = shift;
+    my $file = shift;
+    my $base = $self->base;
     
-    my $_file; 
-    if(!($_file = $self->exists($file))){
-	$file = $self->touch($file); # creates parent directories
-    }
-    else {
-	$file = $_file;
-    }
+    my $path = $self->_foreign_file($base, $file);
+    $self->mkdir($path->dir);
     
-    my $args = {};
-
+    # figure out if we're "write" or "append"
     my (undef, undef, undef, $method) = caller(1);
-    
+
+    my $args;
     if(defined $method && $method eq 'Directory::Scratch::append'){
-	$args = {append => 1};
+	$args->{append} = 1;
+	write_file($path->stringify, $args, map { $_. ($, || "\n") } @_) 
+	  or croak "Error writing file: $!";
     }
-    
-    my @lines = map { $_ . $/ } @_;
-    write_file($file, $args, @lines) or croak "Error writing file: $!";
+    else { # (cut'n'paste)++
+	write_file($path->stringify, map { $_. ($, || "\n") } @_) 
+	  or croak "Error writing file: $!";
+    }
+    return 1;
 }
 
 sub append {
     return &write(@_); # magic!
 }
 
-sub prepend {
-    my( $self, $file ) = splice @_, 0, 2;
-
-    my @directories = (
-        File::Spec->splitdir( $self->base ),
-        File::Spec->splitdir($file)
-    );
-    my $basename = pop @directories;
-
-
-    my $portable_path = File::Spec->catdir(@directories);
-    my $portable_file = File::Spec->catdir(@directories, $basename);
-
-    unless ( -d $portable_path ) {
-        croak  q{prepend() cannot function without write access to}.
-	      qq{"$file"'s directory ($portable_path).};#'
-    }
-
-    # create a temporary file in the same directory as the source file so
-    # the efficient inode update version of mv/move can be taken advantage of
-    my $tmp = File::Temp->new(
-        DIR      => $portable_path,
-        UNLINK   => 0 # manual unlink in case something goes awry
-    );
-
-    my @tmpfile_spec = File::Spec->splitdir( $tmp->filename );
-    my $tmpfile      = File::Spec->catdir( @tmpfile_spec );
-
-    File::Copy::move( $portable_file, $tmpfile )
-        || croak "Could not temporarily relocate file '$file' to '$tmpfile': $!";
-
-    # catch exceptions then throw another one with an additional message
-    eval {
-        write_file( $portable_file, {}, @_ );
-    };
-    if ( $@ ) {
-        croak "$@\nThe original file is probably still available in '$tmpfile'";
-    }
-
-    # gonna do a size check after all the appending is complete
-    my $original_size = -s $tmpfile;
-    my $append_size   = -s $portable_file;
-
-    # now copy one file into the other line-by-line
-    open(my $input, '<', $tmpfile)
-        or croak "Could not open '$tmpfile' (your original file) for reading: $!";
-    open( my $output, '>>', $portable_file)
-        or croak "Could not open '$portable_file' for appending data from '$tmpfile': $!";
-
-    while ( <$input> ) {
-        print $output $_;
-    }
-    close( $output );
-    close( $input );
-
-    # almost, but not quite, entirely portable size comparison
-    my $result = undef;
-    my $new_size = -s $portable_file;
-    my $exp_size = $original_size + $append_size;
-    if ( $new_size == $exp_size ) {
-        $result = 1;
-    }
-    else {
-        croak "The new file's size did not match the expected size ($exp_size).\n" .
-              "  * original file (size: $original_size): $tmpfile\n" .
-              "  * prepended file (size: $new_size): $portable_file";
-    }
-
-    unlink $tmpfile;
-    return $result;
-}
-
 sub tempfile {
     my $self = shift;
     my $path = shift;
+
     if(!defined $path){
 	$path = $self->base;
     }
     else {
-	$path = File::Spec->catfile($self->base, $path);
+	$path = $self->_foreign_dir($self->base, $path);
     }
     
-    return File::Temp::tempfile( DIR => $path );
-}
-
-sub touch {
-    my $self = shift;
-    my $file = shift;
-    my $fh   = $self->openfile($file);
-    my $data = join $/,@_;
-    write_file($fh, $data);
-    return $file;
+    my ($fh, $filename) =  File::Temp::tempfile( DIR => $path );
+    $filename = file($filename); # "class"ify the file
+    if(wantarray){
+	return ($fh, $filename);
+    }
+    
+    # XXX: I don't know why you would want to do this...
+    return $fh;
 }
 
 sub openfile {
     my $self = shift;
     my $file = shift;
     my $base = $self->base;
-    
-    # create parent dir
-    my @directories = File::Spec->splitdir($file);
-    pop @directories; # pop off filename
 
-    my $parents = File::Spec->catdir(@directories);
-    $self->mkdir($parents) if $parents;
-    my $path = File::Spec->catfile($base, $file);
-    open(my $fh, '>', $path) or croak "Failed to open $path: $!";   
+    my $path = $self->_foreign_file($base, $file);
+    $path->dir->mkpath;
+    croak 'Parent directory '. $path->dir. 
+      ' does not exist, and could not be created' 
+	unless -d $path->dir;
+    
+    open(my $fh, '+>', $path) or croak "Failed to open $path: $!"; 
+    return ($fh, $path) if(wantarray);
     return $fh;
 }
+
+sub touch {
+    my $self = shift;
+    my $file = shift;
+    
+    local $, = $, || "\n"; 
+    my ($fh, $path) = $self->openfile($file);
+    
+    write_file($fh, map { $_. ($, || "\n") } @_) 
+      or croak "Write error to $path: $!";
+    return $path;
+}
+
 
 sub ls {
     my $self = shift;
@@ -342,34 +276,34 @@ sub ls {
     my $base = $self->base;
     my @result;
 
-    $dir ||= ''; # silences a lot of warnings in File::Spec
+    $dir = $self->_foreign_dir($dir);
+    my $path = $self->exists($dir);    
+    return () if !$path;
+    return (file($dir)) if !-d $path;
 
-    if(!$self->exists($dir)){
-	return (); # doesn't exist, return the empty list
-    }
+    $path = dir($base, $dir);
     
-    $base = File::Spec->catdir($base, $dir);
-    
-    # shoudln't be using this with files; but allow anyway
-    if(!-d $self->exists($dir)){
-	return ($dir);
-    }
-    
-    opendir my $dh, $base or croak "Failed to open directory $base: $!";
+    opendir my $dh, $path or croak "Failed to open directory $base: $!";
     while(my $file = readdir $dh){
 	next if $file eq '.';
 	next if $file eq '..';
+	my $full  = file($base, $dir, $file);
+	my $short = file($dir, $file);
+	$short = $file if(!$dir || $dir eq '/');
+
+	#print {*STDERR} "[$base][$file: $short -> $full]\n";
 	
-	my $full  = File::Spec->catfile($base, $file);
-	my $short = File::Spec->catfile($dir, $file);
-	$short = $file
-	  if(!$dir || $dir eq '/');
-	
-	push @result, $self->ls($short) if -d $full; #push child elements on
-	push @result, $short; # push ourselves on 
+	if(-d $full){ #push child elements on
+	    #print {*STDERR} "RECURSE -->\n";
+	    push @result, $self->ls($short);
+	    #print {*STDERR} "<-- RECURSE\n";
+	    push @result, dir($short); # push ourselves on 
+	}
+	else {
+	    push @result, file($short);
+	}
     }
     closedir $dh;
-    
     return @result;
 }
 
@@ -378,7 +312,7 @@ sub delete {
     my $path = shift;
     my $base = $self->base;
 
-    $path = foreign_file($platform, $base, $path);
+    $path = $self->_foreign_file($base, $path);
     
     croak "No such file or directory '$path'" if !-e $path;
     
@@ -393,7 +327,7 @@ sub delete {
 
 sub cleanup {
     my $self = shift;
-    my $base = $self->{base};
+    my $base = $self->base;
     
     # capture warnings
     my @errors;
@@ -411,15 +345,16 @@ sub cleanup {
     return 1;
 }
 
-# randfile() needs to remember if it has loaded String::Random
-# and whether or not it succeeded between calls
-
 sub randfile {
     my $self = shift;
+
+    # make sure we can do this
     eval {
 	require String::Random;
     };
-    croak "Please install String::Random" if $@;
+    croak 'randfile: String::Random is required' if $@;
+
+    # setup some defaults
     my( $min, $max ) = ( 1024, 131072 );
 
     if ( @_ == 2 ) {
@@ -432,12 +367,12 @@ sub randfile {
     confess "randfile: Cannot request a maximum length < 1"
       if ( $max < 1 );
     
-    my( $fh, $name ) = $self->tempfile;
-    croak "Cannot open $name: $!" if !$fh;
+    my ($fh, $name) = $self->tempfile;
+    croak "Could not open $name: $!" if !$fh;
+    $name = file($name);
     
     my $rand = String::Random->new();
-    write_file($fh, $rand->randregex( ".{$min,$max}" ));    
-    close($fh);
+    write_file($fh, $rand->randregex(".{$min,$max}"));    
     
     return file($name);
 }
@@ -540,6 +475,14 @@ file called C</tmp/whatever/etc/passwd> will be created instead.
 This means that the program's PWD is ignored (for these methods), and
 that a leading C</> on the filename is meaningless.
 
+Finally, whenever a filename or path is returned, it is a
+L<Path::Class|Path::Class> object rather than a string containing the
+filename.  Usually, this object will act just like the string, but to
+be extra-safe, call C<< $path->stringify >> to ensure that you're
+really getting a string.  (Some clever modules try to determine
+whether a variable is a filename or a filehandle; these modules
+usually guess wrong when confronted with a C<Path::Class> object.)
+
 =head2 new
 
 Creates a new temporary directory (via File::Temp and its defaults).
@@ -567,7 +510,8 @@ instance.  Returns a C<Directory::Scratch> object.
 
 =head2 base
 
-Returns the full path of the temporary directory.
+Returns the full path of the temporary directory, as a Path::Class
+object.
 
 =head2 platform([$platform])
 
@@ -577,9 +521,26 @@ like C<\foo\bar>, whereas "UNIX" means it expects C</foo/bar>).
 
 If $platform is sepcified, the platform is changed to the passed
 value.  (Overrides the platform specified at module C<use> time, for
-I<this instance> only.)
+I<this instance> only, not every C<Directory::Scratch> object.)
 
-=head2 mkdir
+=head2 touch($filename, [@lines])
+
+Creates a file named C<$filename>, optionally containing the elements
+of C<@lines> separated by the output record separator C<$\>.
+
+The Path::Class object representing the new file is returned if the
+operation is successful, an exception is thrown otherwise.
+
+=head2 openfile($filename)
+
+Opens $filename for writing and reading (C<< +> >>), and returns the
+filehandle.  If $filename already exists, it will be truncated.  It's
+up to you to take care of flushing/closing.
+
+In list context, returns both the filehandle and the filename C<($fh,
+$path)>.
+
+=head2 mkdir($directory)
 
 Creates a directory (and its parents, if necessary) inside the
 temporary directory and returns its name.  Any leading C</> on the
@@ -598,23 +559,23 @@ See L<File::Temp::tempfile|File::Temp/FUNCTIONS/tempfile>.
 
     my($fh,$name) = $scratch->tempfile;
 
-=head2 touch($filename, [@lines])
-
-Creates a file named C<$filename>, optionally containing the elements
-of C<@lines> separated by C<\n> characters.  
-
-The full path of the new file is returned if the operation is
-successful, an exception is thrown otherwise.
-
-=head2 openfile($filename)
-
-Just like touch(), only it doesn't take any data and returns a filehandle
-instead of the file path.   It's up to you to take care of flushing/closing.
-
 =head2 exists($file)
 
 Returns the file's real (system) path if $file exists, undefined
 otherwise.
+
+Example:
+
+    my $path = $tmp->exists($file);
+    if(defined $path){
+       say "Looks like you have a file at $path!";
+       open(my $fh, '>>', $path) or die $!;
+       print {$fh} "add another line\n";
+       close $fh or die $!;
+    }
+    else {
+       say "No file called $file."
+    }
 
 =head2 read($file)
 
@@ -625,45 +586,43 @@ of the entire file.
 =head2 write($file, @lines)
 
 Replaces the contents of file with @lines.  Each line will be ended
-with a C<\n>.  The file will be created if necessary.
+with a C<\n>, or C<$,> if it is defined.  The file will be created if
+necessary, but parent directories (if any) will not be.
 
 =head2 append($file, @lines)
 
 Appends @lines to $file, as per C<write>.
 
-=head2 prepend($file, @lines)
-
-Backs up $file, writes the @lines to its original name, then appends
-the original file to that.
-
 =head2 randfile()
 
 Generates a file with random string data in it.   If String::Random is
-available, it will be used to generate the file's data.   If it's not, a very
-simplistic builtin generator is used (calls rand() a lot of times).   Takes 0,
+available, it will be used to generate the file's data.  Takes 0,
 1, or 2 arguments - default size, max size, or size range.
 
 A max size of 0 will cause an exception to be thrown.
 
+Examples:
+
     my $file = $temp->randfile(); # size is between 1024 and 131072
     my $file = $temp->randfile( 4192 ); # size is below 4129
-
-    # big files are probably very slow
-    my $file = $temp->randfile( 1000000, 4000000 ); # between 1000000 and 4000000
+    my $file = $temp->randfile( 1000000, 4000000 ); 
 
 =head2 link($from, $to)
 
 Symlinks a file in the temporary directory to another file in the
 temporary directory.
 
+Note: symlinks are not supported on Win32.  Portable code must not use
+this method.  (The method will C<croak> if it won't work.)
+
 =head2 ls([$path])
 
 Returns a list (in no particular order) of all files below C<$path>.
 If C<$path> is omitted, the root is assumed.
 
-=head2 delete
+=head2 delete($path)
 
-Deletes the named file or directory.
+Deletes the named file or directory at $path.
 
 If the path is removed successfully, the method returns true.
 Otherwise, an exception is thrown.
@@ -673,8 +632,9 @@ C<delete>-ing an unempty directory is an error.)
 
 =head2 cleanup
 
-Forces an immediate cleanup of the current object's directory.   See File::Path's
-rmtree().
+Forces an immediate cleanup of the current object's directory.  See
+File::Path's rmtree().  It is not safe to use the object after this
+method is called.
 
 =head1 RATIONALE 
 
@@ -742,10 +702,8 @@ Here's how to do the same thing with File::Temp:
 
     # tests
 
-
 I find Directory::Scratch easier to use, but this is Perl, so
-TMTOWTDI.  Please use what you prefer.  CPAN isn't a popularity
-contest.
+TMTOWTDI.
 
 =head1 PATCHES
 
@@ -759,6 +717,7 @@ L<svn://svn.jrock.us/cpan_modules/Directory-Scratch>
  L<File::Temp>
  L<File::Path>
  L<File::Spec>
+ L<Path::Class>
 
 =head1 BUGS
 
@@ -778,8 +737,6 @@ Thanks to Al Tobey (TOBEYA) for some excellent patches, notably:
 =item C<tempfile>
 
 =item C<openfile>
-
-=item C<readfile>, C<writefile>
 
 =back
 

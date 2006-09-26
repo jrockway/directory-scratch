@@ -36,7 +36,7 @@ ok(-r $file, 'file readable');
 my $lfile = $temp->touch('baa', "This is a single line");
 open($fh, '<', $lfile);
 my @lines = <$fh>;
-is($lines[0], "This is a single line");
+is($lines[0], "This is a single line\n");
 is($lines[1], undef);
 close $fh;
 

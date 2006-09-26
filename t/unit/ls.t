@@ -20,7 +20,9 @@ my @files = sort $tmp->ls;
 is(scalar @files, 5, 'got 5 files under /');
 my @reference = (file('bar'), dir(qw|bar baz|), file(qw|bar baz quux|),
 		 file(qw|bar quux|), file('foo'));
-is_deeply(\@files, \@reference);
+is_deeply([map {$_->stringify} @files],
+	  [map {$_->stringify} @reference],
+	  'check that paths agree');
 
 @files = sort $tmp->ls('this filename is fake');
 is(scalar @files, 0, 'no fake files [scalar]');

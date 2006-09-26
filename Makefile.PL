@@ -19,6 +19,7 @@ requires(
 	 'File::Slurp' => 0,
 	 'Path::Class' => 0,
 	 'File::Copy'  => 0,
+	 'File::Spec'  => 0,
 	 'Carp'        => 0,
 	);
 build_requires(

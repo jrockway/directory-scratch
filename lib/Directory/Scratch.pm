@@ -9,7 +9,9 @@ use File::Temp;
 use File::Copy;
 use Path::Class qw(dir file);
 use File::Slurp qw(read_file write_file);
+use File::Spec;
 
+my ($our_platform) = $File::Spec::ISA[0] =~ /::(\w+)$/;
 my $platform = 'Unix';
 use Scalar::Util qw(blessed);
 
@@ -33,7 +35,7 @@ sub import {
 # create an instance
 sub new {
     my $class = shift;
-    my $self  ={};
+    my $self  = {};
     my %args;
 
     eval { %args = @_ };
@@ -99,9 +101,7 @@ sub platform {
     my $desired = shift;
 
     if($desired){
-	eval {
-	    require "File/Spec/$desired.pm";
-	};
+	eval "require File::Spec::$desired";
 	croak "Unknown platform '$desired'" if $@;
 	$self->{platform} = $desired;
     }
@@ -115,7 +115,9 @@ sub _foreign_file {
     my $platform = $self->platform;
 
     if($platform){
-	return Path::Class::file(Path::Class::foreign_file($platform, @_));
+	use YAML;
+	my $file = Path::Class::foreign_file($platform, @_);
+	return $file->as_foreign($our_platform);
     }
     else {
 	return Path::Class::file(@_);
@@ -127,7 +129,8 @@ sub _foreign_dir {
     my $platform = $self->platform;
 
     if($platform){
-	return Path::Class::dir(Path::Class::foreign_dir($platform, @_));
+	my $dir = Path::Class::foreign_dir($platform, @_);
+	return $dir->as_foreign($our_platform);
     }
     else {
 	return Path::Class::dir(@_);
@@ -253,7 +256,6 @@ sub openfile {
     croak 'Parent directory '. $path->dir. 
       ' does not exist, and could not be created' 
 	unless -d $path->dir;
-    
     open(my $fh, '+>', $path) or croak "Failed to open $path: $!"; 
     return ($fh, $path) if(wantarray);
     return $fh;
@@ -279,7 +281,7 @@ sub ls {
 
     my @result;
     my $path;
-     
+    
     if($dir){
 	$dir = $self->_foreign_dir($dir); 
 	$path = $self->exists($dir);    

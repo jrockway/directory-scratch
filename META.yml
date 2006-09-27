@@ -14,7 +14,7 @@ requires:
   Carp: 0
   File::Copy: 0
   File::Path: 0
-  File::Slurp: 0
+  File::Slurp: 9999.12
   File::Spec: 0
   File::Temp: 0
   Path::Class: 0

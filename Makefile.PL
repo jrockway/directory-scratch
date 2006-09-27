@@ -16,7 +16,7 @@ include('ExtUtils::AutoInstall');
 requires(
 	 'File::Temp'  => 0,
 	 'File::Path'  => 0,
-	 'File::Slurp' => 0,
+	 'File::Slurp' => '9999.12',
 	 'Path::Class' => 0,
 	 'File::Copy'  => 0,
 	 'File::Spec'  => 0,

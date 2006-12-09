@@ -19,7 +19,7 @@ use overload q{""} => \&base,
   fallback => "yes, fallback";
 
 
-our $VERSION = '0.09';
+our $VERSION = '0.10';
 
 # allow the user to specify which OS's semantics he wants to use
 # if platform is undef, then we won't do any translation at all

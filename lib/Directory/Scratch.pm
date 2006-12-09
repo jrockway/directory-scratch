@@ -11,8 +11,8 @@ use Path::Class qw(dir file);
 use File::Slurp qw(read_file write_file);
 use File::Spec;
 
-my ($our_platform) = $File::Spec::ISA[0] =~ /::(\w+)$/;
-my $platform = 'Unix';
+my ($OUR_PLATFORM) = $File::Spec::ISA[0] =~ /::(\w+)$/;
+my $PLATFORM = 'Unix';
 use Scalar::Util qw(blessed);
 
 use overload q{""} => \&base,
@@ -26,10 +26,10 @@ our $VERSION = '0.09';
 sub import {
     my $class = shift;
     return unless @_;
-    $platform = shift;
-    eval("require File::Spec::$platform") if $platform;
-    croak "Don't know how to deal with platform '$platform'" if $@;
-    return $platform;
+    $PLATFORM = shift;
+    eval("require File::Spec::$PLATFORM");
+    croak "Don't know how to deal with platform '$PLATFORM'" if $@;
+    return $PLATFORM;
 }
 
 # create an instance
@@ -40,6 +40,7 @@ sub new {
 
     eval { %args = @_ };
     croak 'Invalid number of arguments to Directory::Scratch->new' if $@;
+    my $platform = $args{platform} || $PLATFORM;
     
     # explicitly default CLEANUP to 1
     $args{CLEANUP} = 1 unless exists $args{CLEANUP};
@@ -71,7 +72,7 @@ sub new {
     $self->{base} = $base;
 
     bless $self, $class;    
-    $self->platform($platform || $args{platform}); # set platform for this instance
+    $self->platform($platform); # set platform for this instance
     return $self;
 }
 
@@ -117,7 +118,7 @@ sub _foreign_file {
     if($platform){
 	use YAML;
 	my $file = Path::Class::foreign_file($platform, @_);
-	return $file->as_foreign($our_platform);
+	return $file->as_foreign($OUR_PLATFORM);
     }
     else {
 	return Path::Class::file(@_);
@@ -130,7 +131,7 @@ sub _foreign_dir {
 
     if($platform){
 	my $dir = Path::Class::foreign_dir($platform, @_);
-	return $dir->as_foreign($our_platform);
+	return $dir->as_foreign($OUR_PLATFORM);
     }
     else {
 	return Path::Class::dir(@_);

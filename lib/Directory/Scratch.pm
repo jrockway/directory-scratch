@@ -266,12 +266,9 @@ sub openfile {
 sub touch {
     my $self = shift;
     my $file = shift;
-    
-    local $, = $, || "\n"; 
     my ($fh, $path) = $self->openfile($file);
     
-    write_file($fh, map { $_. ($, || "\n") } @_) 
-      or croak "Write error to $path: $!";
+    $self->write($file, @_) || croak 'failed to write file: $!';
     return $path;
 }
 

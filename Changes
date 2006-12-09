@@ -1,5 +1,10 @@
 Revision history for Directory-Scratch
 
+0.10    9 December 2006
+	* up File::Slurp dependency to 9999.12, required for AS/Win32
+	* increase test coverage
+	* fix bug where a platform argument to new() is ignored
+
 0.09    14 Septemeber 2006
         * decided to go back to File::Slurp
         * decided to croak if String::Random isn't installed

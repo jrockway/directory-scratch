@@ -40,7 +40,8 @@ sub new {
 
     eval { %args = @_ };
     croak 'Invalid number of arguments to Directory::Scratch->new' if $@;
-    my $platform = $args{platform} || $PLATFORM;
+    my $platform = $PLATFORM;
+    $platform = $args{platform} if defined $args{platform};
     
     # explicitly default CLEANUP to 1
     $args{CLEANUP} = 1 unless exists $args{CLEANUP};

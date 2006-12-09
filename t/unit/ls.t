@@ -2,7 +2,7 @@
 # ls.t 
 # Copyright (c) 2006 Jonathan Rockway <jrockway@cpan.org>
 
-use Test::More tests => 11;
+use Test::More tests => 13;
 use Directory::Scratch;
 use strict;
 use warnings;
@@ -23,6 +23,16 @@ my @reference = (file('bar'), dir(qw|bar baz|), file(qw|bar baz quux|),
 is_deeply([map {$_->stringify} @files],
 	  [map {$_->stringify} @reference],
 	  'check that paths agree');
+
+# test ls /
+@files = sort $tmp->ls('/');
+is(scalar @files, 5, 'got 5 files under /');
+@reference = (file('bar'), dir(qw|bar baz|), file(qw|bar baz quux|),
+	     file(qw|bar quux|), file('foo'));
+is_deeply([map {$_->stringify} @files],
+	  [map {$_->stringify} @reference],
+	  'check that paths agree');
+
 
 @files = sort $tmp->ls('this filename is fake');
 is(scalar @files, 0, 'no fake files [scalar]');

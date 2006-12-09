@@ -2,7 +2,7 @@
 # other_output_seperator.t 
 # Copyright (c) 2006 Jonathan Rockway <jrockway@cpan.org>
 
-use Test::More tests => 4;
+use Test::More tests => 8;
 use Directory::Scratch;
 use File::Slurp qw(read_file);
 
@@ -18,3 +18,13 @@ is($file, 'these!are!some!lines!', 'lines end in !');
 
 my @file = $tmp->read('foo');
 is_deeply(\@file, [qw(these are some lines)], 'works in array context too');
+
+ok($tmp->append('foo', qw(now there are more)), 'add more lines');
+
+$file = read_file(''. $tmp->exists('foo'));
+ok($file, 'read it back in');
+is($file, 'these!are!some!lines!now!there!are!more!', 'lines end in !');
+
+@file = $tmp->read('foo');
+is_deeply(\@file, [qw(these are some lines now there are more)], 
+	  'works in array context too');

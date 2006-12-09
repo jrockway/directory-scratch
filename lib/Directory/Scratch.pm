@@ -598,8 +598,18 @@ Example:
 =head2 read($file)
 
 Returns the contents of $file.  In array context, returns a list of
-chompped lines.  In scalar context, returns a chomped representation
-of the entire file.
+chompped lines.  In scalar context, returns the raw octets of the
+file (with any trailing newline removed).
+
+If you wrote the file with C<$,> set, you'll want to set C<$/> to
+C<$,> when reading the file back in:
+
+    local $, = '!';
+    $tmp->touch('foo', qw{foo bar baz}); # writes "foo!bar!baz!" to disk
+    scalar $tmp->read('foo') # returns "foo!bar!baz!"
+    $tmp->read('foo') # returns ("foo!bar!baz!")
+    local $/ = '!';
+    $tmp->read('foo') # returns ("foo", "bar", "baz")
 
 =head2 write($file, @lines)
 

@@ -46,6 +46,11 @@ sub new {
     # explicitly default CLEANUP to 1
     $args{CLEANUP} = 1 unless exists $args{CLEANUP};
     
+    # don't clean up if environment variable is set
+    $args{CLEANUP} = 0
+    if(defined $ENV{PERL_DIRECTORYSCRATCH_CLEANUP} &&
+       $ENV{PERL_DIRECTORYSCRATCH_CLEANUP} == 0);
+    
     # TEMPLATE is a special case, since it's positional in File::Temp
     my @file_temp_args;
 
@@ -662,6 +667,11 @@ C<delete>-ing an unempty directory is an error.)
 Forces an immediate cleanup of the current object's directory.  See
 File::Path's rmtree().  It is not safe to use the object after this
 method is called.
+
+=head1 ENVIRONMENT
+
+If the C<PERL_DIRECTORYSCRATCH_CLEANUP> variable is set to 0, automatic
+cleanup will be suppressed.
 
 =head1 PATCHES
 

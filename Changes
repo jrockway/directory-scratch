@@ -1,5 +1,8 @@
 Revision history for Directory-Scratch
 
+????	????????????????
+	* add environment variable to suppress auto-cleanup
+
 0.10    9 December 2006
 	* up File::Slurp dependency to 9999.12, required for AS/Win32
 	* increase test coverage

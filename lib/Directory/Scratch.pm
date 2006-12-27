@@ -313,7 +313,8 @@ sub ls {
 	    $full  = file($base, $file);
 	}
 	
-	$short = $file if(!$dir || $dir eq '/');
+	$short = $file if(!$dir || 
+			  $dir eq Path::Class::foreign_dir('Unix', '/'));
 
 	#print {*STDERR} "[$base][$file: $short -> $full]\n";
 	

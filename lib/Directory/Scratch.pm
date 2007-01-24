@@ -312,9 +312,8 @@ sub ls {
 	    $full  = file($base, $file);
 	}
 	
-	$short = $file if(!$dir || 
-			  $dir eq Path::Class::foreign_dir('Unix', '/'));
-
+	$short = $file if(!$dir || $dir eq '/');
+	
 	#print {*STDERR} "[$base][$file: $short -> $full]\n";
 	
 	if(-d $full){ #push child elements on

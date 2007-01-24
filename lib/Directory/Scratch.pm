@@ -122,7 +122,6 @@ sub _foreign_file {
     my $platform = $self->platform;
 
     if($platform){
-	use YAML;
 	my $file = Path::Class::foreign_file($platform, @_);
 	return $file->as_foreign($OUR_PLATFORM);
     }

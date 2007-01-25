@@ -188,6 +188,8 @@ sub read {
     my $base = $self->base;
     
     $file = $self->_foreign_file($base, $file);
+
+    croak "Cannot read $file: is a directory" if -d $file;
     
     if(wantarray){
 	my @lines = read_file($file->stringify);

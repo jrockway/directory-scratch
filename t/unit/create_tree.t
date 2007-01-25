@@ -2,7 +2,7 @@
 # create_tree.t 
 # Copyright (c) 2007 Jonathan Rockway <jrockway@cpan.org>
 
-use Test::More tests => 12;
+use Test::More tests => 14;
 use Directory::Scratch;
 use strict;
 use warnings;
@@ -18,6 +18,7 @@ is(scalar $tmp->ls, 0, 'no files created');
 my %tree = ( foo       => 'foo',
 	     'bar/baz' => 'this is bar/baz',
 	     'quux'    => 'this is quux',
+	     'lines'   => ['lots', 'of', 'lines'],
 	     'dir'     => \undef,
 	   );
 $tmp->create_tree(\%tree);
@@ -34,3 +35,6 @@ foreach my $file (keys %tree){
 	      "$file contains expected text")
       unless ref $tree{$file};
 }
+
+is_deeply($tree{lines}, [$tmp->read('lines')], 'read lines');
+

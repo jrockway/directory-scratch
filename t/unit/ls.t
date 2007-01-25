@@ -2,7 +2,7 @@
 # ls.t 
 # Copyright (c) 2006 Jonathan Rockway <jrockway@cpan.org>
 
-use Test::More tests => 13;
+use Test::More tests => 12;
 use Directory::Scratch;
 use strict;
 use warnings;
@@ -33,12 +33,11 @@ is_deeply([map {$_->stringify} @files],
 	  [map {$_->stringify} @reference],
 	  'check that paths agree');
 
+eval {
+    @files = sort $tmp->ls('this filename is fake');
+};
+ok($@, "can't ls files that don't exist");
 
-@files = sort $tmp->ls('this filename is fake');
-is(scalar @files, 0, 'no fake files [scalar]');
-{ no warnings;
-ok(@files == (), 'no fake files [list]');
-}
 @files = sort $tmp->ls('foo');
 is_deeply(\@files, [file('foo')], 'single file = list');
 

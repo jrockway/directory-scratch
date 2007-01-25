@@ -283,52 +283,27 @@ sub ls {
     my $self = shift;
     my $dir = shift;
     my $base = $self->base;
-
+    my $path = dir($base);
     my @result;
-    my $path;
-    
+
     if($dir){
 	$dir = $self->_foreign_dir($dir); 
 	$path = $self->exists($dir);    
-	return () if !$path;
+	croak "No path `$dir' in temporary directory"  if !$path;
+	
 	return (file($dir)) if !-d $path;
 	$path = dir($base, $dir);
     }
-    else {
-	$path = dir($base);
-    }
     
-    opendir my $dh, $path or croak "Failed to open directory $base: $!";
-    while(my $file = readdir $dh){
-	next if $file eq '.';
-	next if $file eq '..';
+    $path->recurse( callback => 
+		    sub {
+			my $file = shift;
+			return if $file eq $path;
 
-	my $full;
-	my $short;
-	if($dir){
-	    $short = file($dir, $file);
-	    $full  = file($base, $dir, $file);
-	}
-	else {
-	    $short = file($file);
-	    $full  = file($base, $file);
-	}
-	
-	$short = $file if(!$dir || $dir eq '/');
-	
-	#print {*STDERR} "[$base][$file: $short -> $full]\n";
-	
-	if(-d $full){ #push child elements on
-	    #print {*STDERR} "RECURSE -->\n";
-	    push @result, $self->ls($short);
-	    #print {*STDERR} "<-- RECURSE\n";
-	    push @result, dir($short); # push ourselves on 
-	}
-	else {
-	    push @result, file($short);
-	}
-    }
-    closedir $dh;
+			push @result, $file->relative($base);
+		    }
+		  );
+    
     return @result;
 }
 
@@ -690,7 +665,10 @@ this method.  (The method will C<croak> if it won't work.)
 =head2 ls([$path])
 
 Returns a list (in no particular order) of all files below C<$path>.
-If C<$path> is omitted, the root is assumed.
+If C<$path> is omitted, the root is assumed.  Note that directories
+are not returned.
+
+If C<$path> does not exist, an exception is thrown.
 
 =head2 delete($path)
 

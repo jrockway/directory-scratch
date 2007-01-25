@@ -19,7 +19,7 @@ use overload q{""} => \&base,
   fallback => "yes, fallback";
 
 
-our $VERSION = '0.11';
+our $VERSION = '0.12';
 
 # allow the user to specify which OS's semantics he wants to use
 # if platform is undef, then we won't do any translation at all
@@ -570,6 +570,28 @@ of C<@lines> separated by the output record separator C<$\>.
 
 The Path::Class object representing the new file is returned if the
 operation is successful, an exception is thrown otherwise.
+
+=head2 create_tree(%tree)
+
+Creates a file for every key/value pair if the hash, using the key as
+the filename and the value as the contents.  If the value is an
+arrayref, the array is used as the optional @lines argument to
+C<touch>.  If the value is a reference to C<undef>, then a directory
+is created instead of a file.
+
+Example:
+
+    %tree = ( 'foo'     => 'this is foo',
+              'bar/baz' => 'this is baz inside bar',
+              'lines'   => [qw|this file contains 5 lines|],
+              'dir'     => \undef,
+            );
+    $tmp->create_tree(%tree);
+
+In this case, two directories are created, C<dir> and C<bar>; and
+three files are created, C<foo>, C<baz> (inside C<bar>), and
+C<lines>. C<foo> and C<baz> contain a single line, while C<lines>
+contains 5 lines.
 
 =head2 openfile($filename)
 

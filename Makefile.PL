@@ -30,6 +30,8 @@ features(
 	    ['String::Random' => 0]
 	);
 
+par_base 'JROCKWAY';
+
 tests('t/*/*.t');
 auto_install();
 WriteAll();

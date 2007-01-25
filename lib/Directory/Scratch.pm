@@ -332,6 +332,23 @@ sub ls {
     return @result;
 }
 
+sub create_tree {
+    my $self = shift;
+    my %tree = %{shift()};
+    
+    foreach my $element (keys %tree){
+	my $value = $tree{$element};
+	if('SCALAR' eq ref $value){
+	    $self->mkdir($element);
+	}
+	else {
+	    my @lines = ($value);
+	    @lines = @$value if 'ARRAY' eq ref $value;
+	    $self->touch($element, @lines);
+	}
+    }
+}
+
 sub delete {
     my $self = shift;
     my $path = shift;

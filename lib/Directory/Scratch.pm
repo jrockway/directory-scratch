@@ -334,7 +334,7 @@ sub ls {
 
 sub create_tree {
     my $self = shift;
-    my %tree = %{shift()};
+    my %tree = %{shift()||{}};
     
     foreach my $element (keys %tree){
 	my $value = $tree{$element};

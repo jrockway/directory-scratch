@@ -181,6 +181,14 @@ sub link {
     return $to;
 }
 
+sub chmod {
+    my $self  = shift;
+    my $mode  = shift;
+    my @paths = @_;
+    
+    my @translated = map { $self->_foreign_file($self->base, $_) } @paths;
+    return chmod $mode, @translated;
+}
 
 sub read {
     my $self = shift;
@@ -679,6 +687,15 @@ Otherwise, an exception is thrown.
 
 (Note: delete means C<unlink> for a file and C<rmdir> for a directory.
 C<delete>-ing an unempty directory is an error.)
+
+=head2 chmod($octal_permissions, @files)
+
+Sets the permissions C<$octal_permissions> on C<@files>, returning the
+number of files successfully changed. Note that C<'0644'> is
+C<--w----r-T>, not C<-rw-r--r-->.  You need to pass in C<oct('0644')>
+or a literal C<0644> for this method to DWIM.  The method is just a
+passthru to perl's built-in C<chmod> function, so see C<perldoc -f
+chmod> for full details.
 
 =head2 cleanup
 

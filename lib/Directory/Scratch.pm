@@ -729,9 +729,19 @@ cleanup will be suppressed.
 =head1 PATCHES
 
 Commentary, patches, etc. are most welcome.  If you send a patch,
-try patching the subversion version available from:
+try patching the git version available from:
 
-L<svn://svn.jrock.us/cpan_modules/Directory-Scratch>
+L<git://git.jrock.us/Directory-Scratch>.
+
+You can check out a copy by running:
+
+    git clone git://git.jrock.us/Directory-Scratch
+
+Then you can use git to commit changes and then e-mail me a patch, or
+you can publish the repository and ask me to pull the changes.  More
+information about git is available from
+
+L<http://git.or.cz/>
 
 =head1 SEE ALSO
 

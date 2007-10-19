@@ -20,6 +20,7 @@ requires(
 	 'Path::Class' => 0,
 	 'File::Copy'  => 0,
 	 'File::Spec'  => 0,
+         'File::stat'  => 0, # core
 	 'Carp'        => 0,
 	);
 build_requires(

@@ -10,6 +10,7 @@ use File::Copy;
 use Path::Class qw(dir file);
 use File::Slurp qw(read_file write_file);
 use File::Spec;
+use File::stat (); # no imports
 
 my ($OUR_PLATFORM) = $File::Spec::ISA[0] =~ /::(\w+)$/;
 my $PLATFORM = 'Unix';
@@ -151,6 +152,18 @@ sub exists {
     return dir($path) if -d $path;
     return $path if -e $path;
     return; # undef otherwise
+}
+
+sub stat {
+    my $self = shift;
+    my $file = shift;
+    my $path = $self->_foreign_file($self->base, $file);
+
+    if(wantarray){
+        return stat $path; # core stat, returns a list
+    }
+    
+    return File::stat::stat($path); # returns an object
 }
 
 sub mkdir {
@@ -621,6 +634,11 @@ Example:
     else {
        say "No file called $file."
     }
+
+=head2 stat($file)
+
+Stats C<$file>.  In list context, returns the list returned by the
+C<stat> builtin.  In scalar context, returns a C<File::stat> object.
 
 =head2 read($file)
 

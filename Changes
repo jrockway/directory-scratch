@@ -1,4 +1,10 @@
 Revision history for Directory-Scratch
+0.14    8 June 2008
+        * remove auto_install and update Module::Install
+
+0.13    19 October 2007
+        * add "chmod" and "stat" commands
+
 0.12    25 January 2007
         * fix non-hard-coded '/' for Win32 users CORRECTLY; it
 	  really works now, I promise!

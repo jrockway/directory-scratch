@@ -567,7 +567,7 @@ of C<@lines> separated by the output record separator C<$\>.
 The Path::Class object representing the new file is returned if the
 operation is successful, an exception is thrown otherwise.
 
-=head2 create_tree(%tree)
+=head2 create_tree(\%tree)
 
 Creates a file for every key/value pair if the hash, using the key as
 the filename and the value as the contents.  If the value is an
@@ -582,7 +582,7 @@ Example:
               'lines'   => [qw|this file contains 5 lines|],
               'dir'     => \undef,
             );
-    $tmp->create_tree(%tree);
+    $tmp->create_tree(\%tree);
 
 In this case, two directories are created, C<dir> and C<bar>; and
 three files are created, C<foo>, C<baz> (inside C<bar>), and

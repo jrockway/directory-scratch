@@ -35,7 +35,6 @@ t/integration/11-cleanup.t
 t/integration/11-stringify.t
 t/integration/12-randfile.t
 t/integration/other_output_seperator.t
-t/os/mac.t
 t/os/win32.t
 t/unit/append.t
 t/unit/chmod.t
